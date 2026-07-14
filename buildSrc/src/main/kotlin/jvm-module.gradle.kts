@@ -53,6 +53,8 @@ kotlin {
 
 tasks.named<JavaCompile>("compileJava") {
     options.release.set(BuildSettings.productionBytecodeVersion)
+    // Java 8 bytecode is intentional for the documented Gradle 7.6.3 floor.
+    options.compilerArgs.add("-Xlint:-options")
 }
 
 tasks.named<KotlinJvmCompile>("compileTestKotlin") {

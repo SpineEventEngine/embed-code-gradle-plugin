@@ -24,6 +24,112 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import io.spine.embedcode.gradle.dependency.PluginPublish
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.external.javadoc.StandardJavadocDocletOptions
+import org.gradle.plugin.compatibility.compatibility
+
 plugins {
     id("jvm-module")
+    `java-gradle-plugin`
+    `maven-publish`
+}
+
+apply(plugin = PluginPublish.id)
+
+base {
+    archivesName.set("embed-code-gradle-plugin")
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+tasks.withType<Jar>().configureEach {
+    from(rootProject.layout.projectDirectory.file("LICENSE")) {
+        into("META-INF")
+    }
+}
+
+// Getter docs use concise "Returns..." prose instead of duplicate `@return` tags.
+tasks.withType<Javadoc>().configureEach {
+    (options as StandardJavadocDocletOptions).addBooleanOption("Xdoclint:-missing", true)
+}
+
+tasks.test {
+    inputs.property(
+        "embedCodeGradle7JavaHome",
+        providers.environmentVariable("EMBED_CODE_GRADLE_7_JAVA_HOME")
+            .orElse(providers.environmentVariable("JAVA_HOME_17_X64"))
+            .orElse(""),
+    )
+}
+
+tasks.processResources {
+    val versionProperties = mapOf("embedCodeVersion" to project.version.toString())
+    inputs.properties(versionProperties)
+    filesMatching("**/version.properties") {
+        expand(versionProperties)
+    }
+}
+
+gradlePlugin {
+    website.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
+    vcsUrl.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
+    plugins {
+        create("embedCode") {
+            id = "io.spine.embed-code"
+            implementationClass = "io.spine.embedcode.gradle.EmbedCodePlugin"
+            displayName = "Embed Code Gradle Plugin"
+            description =
+                "Runs Embed Code from Gradle without a separately installed executable."
+            tags.set(listOf("documentation", "code-samples"))
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
+        }
+    }
+}
+
+publishing {
+    publications.withType<MavenPublication>().configureEach {
+        if (name == "pluginMaven") {
+            artifactId = "embed-code-gradle-plugin"
+        }
+        pom {
+            name.set("Embed Code Gradle Plugin")
+            description.set(
+                "Runs Embed Code from Gradle without a separately installed executable.",
+            )
+            url.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    distribution.set("repo")
+                }
+            }
+            developers {
+                developer {
+                    id.set("SpineEventEngine")
+                    name.set("Spine Event Engine")
+                    url.set("https://github.com/SpineEventEngine")
+                }
+            }
+            scm {
+                url.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
+                connection.set(
+                    "scm:git:https://github.com/SpineEventEngine/" +
+                        "embed-code-gradle-plugin.git",
+                )
+                developerConnection.set(
+                    "scm:git:ssh://git@github.com/SpineEventEngine/" +
+                        "embed-code-gradle-plugin.git",
+                )
+            }
+        }
+    }
 }
