@@ -1,2 +1,2 @@
 /** Version of the Embed Code Gradle plugin. */
-val embedCodePluginVersion: String by extra("0.1.0")
+extra.set("embedCodePluginVersion", "0.1.0")

@@ -4,7 +4,7 @@ package io.spine.embedcode.gradle
 object BuildSettings {
 
     /** Java toolchain version used to build and test the project. */
-    const val javaVersion = 17
+    const val javaVersion = 21
 
     /** JVM bytecode version produced for published code. */
     const val productionBytecodeVersion = 8
