@@ -24,6 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.Kotlin
 import io.spine.embedcode.gradle.dependency.PluginPublish
 import org.gradle.api.publish.maven.MavenPublication
@@ -41,6 +42,47 @@ dependencies {
     // Gradle supplies Kotlin at runtime, so the plugin does not publish the standard library.
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
     testCompileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+    // Unit tests no longer inherit TestKit's Gradle and Kotlin runtime; supply both explicitly.
+    testRuntimeOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+    testRuntimeOnly(gradleApi())
+}
+
+val functionalTestSourceSet = sourceSets.create("functionalTest")
+functionalTestSourceSet.compileClasspath += sourceSets.main.get().output
+functionalTestSourceSet.runtimeClasspath += sourceSets.main.get().output
+
+kotlin {
+    target.compilations.getByName("functionalTest") {
+        associateWith(target.compilations.getByName("main"))
+    }
+}
+
+configurations[functionalTestSourceSet.implementationConfigurationName].extendsFrom(
+    configurations.testImplementation.get(),
+)
+configurations[functionalTestSourceSet.compileOnlyConfigurationName].extendsFrom(
+    configurations.testCompileOnly.get(),
+)
+configurations[functionalTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(
+    configurations.testRuntimeOnly.get(),
+)
+
+val functionalTest = tasks.register<Test>("functionalTest") {
+    description = "Runs TestKit functional tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = functionalTestSourceSet.output.classesDirs
+    classpath = functionalTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(BuildSettings.bytecodeVersion))
+        },
+    )
+    shouldRunAfter(tasks.test)
+}
+
+tasks.check {
+    dependsOn(functionalTest)
 }
 
 base {
@@ -59,6 +101,7 @@ tasks.withType<Jar>().configureEach {
 }
 
 gradlePlugin {
+    testSourceSets(functionalTestSourceSet)
     website.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
     vcsUrl.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
     plugins {

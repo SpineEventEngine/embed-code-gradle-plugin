@@ -83,7 +83,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
      */
     @TaskAction
     public fun install() {
-        val requestedVersion = version.orNull?.trim()
+        val requestedVersion = version.orNull
         if (requestedVersion != null && requestedVersion.isEmpty()) {
             throw GradleException("Embed Code version must not be empty.")
         }

@@ -24,8 +24,8 @@ The plugin is written in Kotlin, but uses the Kotlin runtime supplied by Gradle.
 
 ## How to use
 
-This section describes, how to use plugin, if you are interested in how to use
-Embed Code application at all, see it's [documentation][embed-code].
+This section describes how to use the plugin. For information about the Embed
+Code application itself, see its [documentation][embed-code].
 
 Add the following configuration to the project's `build.gradle.kts`:
 
@@ -107,7 +107,7 @@ Update documentation:
 
 The plugin prefers the `checkEmbedding` and `embedCode` task names. If a name
 is already occupied when the plugin is applied, underscores are prepended until
-an available name is found, for example `_embedCode` or `__embedCode`. 
+an available name is found, for example `_embedCode` or `__embedCode`.
 The fallback cannot account for a conflicting task registered later.
 
 ## Development
@@ -118,7 +118,10 @@ Run compilation, plugin validation, and the complete test suite:
 ./gradlew check
 ```
 
-To test the plugin publish it to the local Maven repository:
+Fast unit tests run under `test`. TestKit coverage runs separately under
+`functionalTest`; the `check` task includes both.
+
+To test the plugin in another project, publish it to the local Maven repository:
 
 ```bash
 ./gradlew :gradle-plugin:publishToMavenLocal

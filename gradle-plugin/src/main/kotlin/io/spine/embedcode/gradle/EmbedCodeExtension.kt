@@ -52,10 +52,10 @@ public abstract class EmbedCodeExtension {
     public abstract val codePath: DirectoryProperty
 
     /** Named source roots keyed by the name used in embedding instructions. */
-    public abstract val namedSources: MapProperty<String, String>
+    internal abstract val namedSources: MapProperty<String, String>
 
     /** Named source directories with their task dependencies. */
-    public abstract val namedSourceDirectories: ConfigurableFileCollection
+    internal abstract val namedSourceDirectories: ConfigurableFileCollection
 
     /**
      * Adds a named source root.

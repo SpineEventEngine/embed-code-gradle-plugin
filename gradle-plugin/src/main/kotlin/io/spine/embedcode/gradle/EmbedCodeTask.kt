@@ -50,7 +50,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.Locale
 import java.util.TreeMap
 import javax.inject.Inject
 
@@ -74,7 +73,12 @@ public abstract class EmbedCodeTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     public abstract val codePath: DirectoryProperty
 
-    /** Named source roots included in an internally generated configuration. */
+    /**
+     * Named source roots included in an internally generated configuration.
+     *
+     * The absolute path values make this input machine-specific. The task intentionally
+     * declares no outputs and disables caching because it checks or modifies documentation.
+     */
     @get:Input
     public abstract val namedSources: MapProperty<String, String>
 
@@ -196,86 +200,4 @@ public abstract class EmbedCodeTask : DefaultTask() {
         return configuration
     }
 
-    private companion object {
-
-        /**
-         * Creates a JSON document accepted by Embed Code's YAML configuration parser.
-         */
-        fun createConfigurationJson(
-            namedSources: Map<String, String>,
-            docsPath: String,
-            docIncludes: List<String>,
-            docExcludes: List<String>,
-            separator: String,
-            info: Boolean,
-            stacktrace: Boolean,
-        ): String {
-            val json = StringBuilder()
-            json.append("{\n  \"code-path\": [\n")
-            var index = 0
-            for (source in namedSources.entries) {
-                if (index > 0) {
-                    json.append(",\n")
-                }
-                json.append("    {\"name\": ")
-                appendJsonString(json, source.key)
-                json.append(", \"path\": ")
-                appendJsonString(json, source.value)
-                json.append('}')
-                index++
-            }
-            json.append("\n  ],\n  \"docs-path\": ")
-            appendJsonString(json, docsPath)
-            json.append(",\n  \"doc-includes\": ")
-            appendJsonArray(json, docIncludes)
-            json.append(",\n  \"doc-excludes\": ")
-            appendJsonArray(json, docExcludes)
-            json.append(",\n  \"separator\": ")
-            appendJsonString(json, separator)
-            json.append(",\n  \"info\": ").append(info)
-            json.append(",\n  \"stacktrace\": ").append(stacktrace)
-            json.append("\n}\n")
-            return json.toString()
-        }
-
-        /**
-         * Appends a JSON array containing [values].
-         */
-        fun appendJsonArray(json: StringBuilder, values: List<String>) {
-            json.append('[')
-            for (index in values.indices) {
-                if (index > 0) {
-                    json.append(", ")
-                }
-                appendJsonString(json, values[index])
-            }
-            json.append(']')
-        }
-
-        /**
-         * Appends [value] as an escaped JSON string.
-         */
-        fun appendJsonString(json: StringBuilder, value: String) {
-            json.append('"')
-            for (character in value) {
-                when (character) {
-                    '"' -> json.append("\\\"")
-                    '\\' -> json.append("\\\\")
-                    '\b' -> json.append("\\b")
-                    '\u000C' -> json.append("\\f")
-                    '\n' -> json.append("\\n")
-                    '\r' -> json.append("\\r")
-                    '\t' -> json.append("\\t")
-                    else -> {
-                        if (character < '\u0020') {
-                            json.append(String.format(Locale.ROOT, "\\u%04x", character.code))
-                        } else {
-                            json.append(character)
-                        }
-                    }
-                }
-            }
-            json.append('"')
-        }
-    }
 }

@@ -46,7 +46,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 @DisplayName("`EmbedCodePlugin` should")
-internal class EmbedCodePluginIgTest {
+internal class EmbedCodePluginSpec {
 
     @TempDir
     private lateinit var projectDirectory: Path
@@ -115,10 +115,10 @@ internal class EmbedCodePluginIgTest {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `allow overriding the latest Embed Code version`() {
+    fun `trim an overridden Embed Code version`() {
         val overrideVersion = "0.0.0-test"
         createFakeRelease(releaseDirectory, overrideVersion)
-        writeBuildFile(overrideVersion)
+        writeBuildFile(" $overrideVersion ")
 
         val result = runner(":checkEmbedding").build()
 
@@ -337,12 +337,9 @@ internal class EmbedCodePluginIgTest {
      */
     private fun runner(
         vararg arguments: String,
-        useConfigurationCache: Boolean = true,
     ): GradleRunner {
         val gradleArguments = arguments.toMutableList()
-        if (useConfigurationCache) {
-            gradleArguments.add("--configuration-cache")
-        }
+        gradleArguments.add("--configuration-cache")
         gradleArguments.add("--stacktrace")
         return GradleRunner.create()
             .withProjectDir(projectDirectory.toFile())

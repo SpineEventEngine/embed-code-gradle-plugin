@@ -56,18 +56,19 @@ public class EmbedCodePlugin : Plugin<Project> {
         val operatingSystem = System.getProperty("os.name").orEmpty()
         val architecture = System.getProperty("os.arch").orEmpty()
         val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
+        val requestedVersion = extension.version.map { version -> version.trim() }
         val installTask = project.tasks.register(
             "installEmbedCode",
             InstallEmbedCodeTask::class.java,
         ) { task ->
             task.description = "Installs the requested Embed Code executable"
-            task.version.set(extension.version)
+            task.version.set(requestedVersion)
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
             task.operatingSystem.set(operatingSystem)
             task.architecture.set(architecture)
             task.executableFile.set(
                 project.layout.buildDirectory.file(
-                    extension.version.map { version ->
+                    requestedVersion.map { version ->
                         "embed-code/$version/$installedExecutableName"
                     }.orElse("embed-code/latest/$installedExecutableName"),
                 ),
