@@ -34,7 +34,7 @@ plugins {
  * `buildSrc` needs this version before its dependency objects are compiled.
  * Keep in sync with `io.spine.embedcode.gradle.dependency.Kotlin.version`.
  */
-val kotlinVersion = "2.4.0"
+val kotlinVersion = "2.4.10"
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
@@ -42,5 +42,5 @@ dependencies {
 
 kotlin {
     // `buildSrc` needs its toolchain before `BuildSettings` is compiled.
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
