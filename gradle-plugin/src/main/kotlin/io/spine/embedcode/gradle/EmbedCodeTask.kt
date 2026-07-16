@@ -126,6 +126,13 @@ public abstract class EmbedCodeTask : DefaultTask() {
      */
     @TaskAction
     public fun runEmbedCode() {
+        val executionMode = mode.get()
+        val processDirectory = workingDirectory.get().asFile
+        logger.info(
+            "Preparing Embed Code `{}` mode in `{}`.",
+            executionMode,
+            processDirectory,
+        )
         val configuredSources = TreeMap(namedSources.get())
         val hasDirectSource = codePath.isPresent
         val hasNamedSources = configuredSources.isNotEmpty()
@@ -136,12 +143,19 @@ public abstract class EmbedCodeTask : DefaultTask() {
         }
 
         val arguments = mutableListOf<String>()
-        arguments.add("-mode=${mode.get()}")
+        arguments.add("-mode=$executionMode")
         if (hasNamedSources) {
             arguments.add("-config-path=${writeNamedSourceConfiguration(configuredSources)}")
         } else {
-            arguments.add("-code-path=${codePath.get().asFile.absolutePath}")
-            arguments.add("-docs-path=${docsPath.get().asFile.absolutePath}")
+            val sourceDirectory = codePath.get().asFile
+            val documentationDirectory = docsPath.get().asFile
+            logger.info(
+                "Using source root `{}` and documentation root `{}`.",
+                sourceDirectory,
+                documentationDirectory,
+            )
+            arguments.add("-code-path=${sourceDirectory.absolutePath}")
+            arguments.add("-docs-path=${documentationDirectory.absolutePath}")
             if (docIncludes.get().isNotEmpty()) {
                 arguments.add("-doc-includes=${docIncludes.get().joinToString(",")}")
             }
@@ -153,11 +167,18 @@ public abstract class EmbedCodeTask : DefaultTask() {
             arguments.add("-stacktrace=${stacktrace.get()}")
         }
 
+        val executable = executableFile.get().asFile
+        logger.info(
+            "Starting Embed Code `{}` mode with executable `{}`.",
+            executionMode,
+            executable,
+        )
         execOperations.exec { spec ->
-            spec.executable(executableFile.get().asFile)
+            spec.executable(executable)
             spec.args(arguments)
-            spec.setWorkingDir(workingDirectory.get().asFile)
+            spec.setWorkingDir(processDirectory)
         }
+        logger.info("Embed Code `{}` mode completed successfully.", executionMode)
     }
 
     /**
@@ -197,6 +218,11 @@ public abstract class EmbedCodeTask : DefaultTask() {
                 exception,
             )
         }
+        logger.info(
+            "Generated Embed Code configuration at `{}` for {} named source roots.",
+            configuration,
+            configuredSources.size,
+        )
         return configuration
     }
 

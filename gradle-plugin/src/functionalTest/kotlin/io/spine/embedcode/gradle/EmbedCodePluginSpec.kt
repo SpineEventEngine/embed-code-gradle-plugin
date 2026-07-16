@@ -91,6 +91,21 @@ internal class EmbedCodePluginSpec {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `log main execution points at info level`() {
+        val result = runner(":checkEmbedding", "--info").build()
+
+        result.output shouldContain "Applying the Embed Code plugin to project `:`."
+        result.output shouldContain
+            "Registered Embed Code tasks `checkEmbedding` and `embedCode` in project `:`."
+        result.output shouldContain "Preparing the Embed Code executable for operating system"
+        result.output shouldContain "Preparing Embed Code `check` mode"
+        result.output shouldContain "Using source root"
+        result.output shouldContain "Starting Embed Code `check` mode with executable"
+        result.output shouldContain "Embed Code `check` mode completed successfully."
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reuse the configuration cache`() {
         runner(":checkEmbedding").build()
 

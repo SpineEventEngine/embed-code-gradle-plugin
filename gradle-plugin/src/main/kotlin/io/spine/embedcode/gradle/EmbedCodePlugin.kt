@@ -39,6 +39,7 @@ public class EmbedCodePlugin : Plugin<Project> {
      * Applies the plugin to [project].
      */
     override fun apply(project: Project) {
+        project.logger.info("Applying the Embed Code plugin to project `{}`.", project.path)
         val checkTaskName = availableTaskName(project, "checkEmbedding")
         val embedTaskName = availableTaskName(project, "embedCode")
         val extension = project.extensions.create(
@@ -97,6 +98,12 @@ public class EmbedCodePlugin : Plugin<Project> {
             embedTaskName,
             "Updates embedded code snippets from source files",
             "embed",
+        )
+        project.logger.info(
+            "Registered Embed Code tasks `{}` and `{}` in project `{}`.",
+            checkTaskName,
+            embedTaskName,
+            project.path,
         )
     }
 

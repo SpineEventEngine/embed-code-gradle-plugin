@@ -97,10 +97,14 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         if (requestedVersion != null && requestedVersion.isEmpty()) {
             throw GradleException("Embed Code version must not be empty.")
         }
-        val platform = EmbedCodePlatform.detect(
-            operatingSystem.get(),
-            architecture.get(),
+        val hostOperatingSystem = operatingSystem.get()
+        val hostArchitecture = architecture.get()
+        logger.info(
+            "Preparing the Embed Code executable for operating system `{}` and architecture `{}`.",
+            hostOperatingSystem,
+            hostArchitecture,
         )
+        val platform = EmbedCodePlatform.detect(hostOperatingSystem, hostArchitecture)
         val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())
         val destination = executableFile.get().asFile.toPath()
@@ -110,6 +114,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             return
         }
         val resolvedVersion = if (requestedVersion == null) {
+            logger.info("Resolving the latest Embed Code release from {}.", baseUrl)
             try {
                 resolveLatestVersion(baseUrl)
             } catch (exception: GradleException) {
@@ -126,6 +131,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
         } else {
             null
+        }
+        if (resolvedVersion != null) {
+            logger.info("Resolved the latest Embed Code release as {}.", resolvedVersion)
         }
         if (
             resolvedVersion != null &&
@@ -159,6 +167,11 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             if (resolvedVersion != null) {
                 writeResolvedVersion(versionFile, resolvedVersion)
             }
+            logger.info(
+                "Installed Embed Code {} at {}.",
+                releaseVersion ?: "latest release",
+                destination,
+            )
         } catch (exception: IOException) {
             throw GradleException("Could not install Embed Code from $source.", exception)
         }
