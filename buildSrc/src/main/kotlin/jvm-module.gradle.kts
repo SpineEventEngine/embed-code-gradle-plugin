@@ -43,6 +43,7 @@ java {
 }
 
 kotlin {
+    explicitApi()
     compilerOptions {
         jvmTarget.set(jvmTarget(BuildSettings.bytecodeVersion))
         // Gradle 8.14.4 embeds Kotlin 2.0.21. Keep plugin metadata and
