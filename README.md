@@ -1,68 +1,91 @@
-# Embed Code Gradle Plugin
+[![Build on Ubuntu and Windows][build-badge]][gh-actions]
+[![license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 
-The `io.spine.embed-code` plugin runs Embed Code without requiring developers
-or CI jobs to download an executable manually. It selects the released binary
-for the current platform, installs it under the project's `build/` directory,
-and exposes separate `checkEmbedding` and `embedCode` tasks.
+# Embed Code Gradle plugin
 
-## Apply and Configure
+Gradle plugin for [Embed Code][embed-code], an application that keeps code
+examples in Markdown and HTML synchronized with their source files.
 
-After the plugin is published, apply its released version:
+The plugin downloads the released Embed Code executable for the current
+platform, so developers and CI jobs do not have to install it manually. It
+adds two tasks:
+
+- `checkEmbedding` checks that embedded code is up to date.
+- `embedCode` updates embedded code in place.
+
+## Requirements
+
+- Java 17 or a newer version supported by the selected Gradle version.
+- Gradle 8.14.4 or newer.
+- Linux AMD64, Windows AMD64, or macOS AMD64/ARM64.
+
+Consumers do not need to install Kotlin or apply a Kotlin plugin.
+The plugin is written in Kotlin, but uses the Kotlin runtime supplied by Gradle.
+
+## How to use
+
+This section describes, how to use plugin, if you are interested in how to use
+Embed Code application at all, see it's [documentation][embed-code].
+
+Add the following configuration to the project's `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.spine.embed-code") version "<version>"
+    id("io.spine.embed-code") version "0.1.0" // Specify the actual version here.
 }
-```
 
-Until then, test the plugin directly from this checkout by adding its build to
-the consuming project's `settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-    includeBuild("../embed-code-gradle-plugin")
-}
-```
-
-The consuming `build.gradle.kts` can then apply `id("io.spine.embed-code")`
-without a version while using that included build.
-
-Configure Embed Code directly in `build.gradle.kts`; no `embed-code.yml` file
-is required:
-
-```kotlin
 embedCode {
+
+    // Specify the directory containing source files referenced by embedding instructions.
+    //
+    // This property is required unless `namedSource(...)` is used.
+    //
     codePath.set(layout.projectDirectory.dir("src/main/java"))
+
+    // Specify the directory containing Markdown or HTML documentation.
+    //
+    // This property is required.
+    //
     docsPath.set(layout.projectDirectory.dir("docs"))
+
+    // Configure documentation files to include and exclude.
+    //
+    // This section is optional. The default includes are `**/*.md` and
+    // `**/*.html`; the default excludes list is empty.
+    //
     docIncludes.set(listOf("**/*.md", "**/*.html"))
     docExcludes.set(listOf("drafts/**", "generated/**"))
+
+    // Configure other Embed Code command-line options.
+    //
+    // This section is optional. The values below are the defaults.
+    //
     separator.set("...")
     info.set(false)
     stacktrace.set(false)
 }
 ```
 
-`docsPath` is required. Configure either one unnamed `codePath` or one or more
-named sources. By default, the plugin downloads the latest Embed Code release
-from GitHub Releases. Plugin and application versions are independent. The
-other properties use the same defaults as the Embed Code command-line
-application.
+Use named source roots when documentation embeds code from multiple modules:
 
-| Property                       | Default                        | Purpose                                      |
-|--------------------------------|--------------------------------|----------------------------------------------|
-| `version`                      | Latest GitHub release          | Pins a specific executable release when set. |
-| `codePath`                     | Required without named sources | Sets one unnamed source root.                |
-| `namedSource(name, directory)` | Required without `codePath`    | Adds a `$name/` source root.                 |
-| `docsPath`                     | Required                       | Sets the documentation root to scan.         |
-| `docIncludes`                  | `**/*.md`, `**/*.html`         | Selects documentation files.                 |
-| `docExcludes`                  | Empty                          | Skips matching documentation files.          |
-| `separator`                    | `...`                          | Separates joined fragment parts.             |
-| `info`                         | `false`                        | Enables informational logging.               |
-| `stacktrace`                   | `false`                        | Prints stack traces after panics.            |
-| `downloadBaseUrl`              | GitHub Releases                | Selects a release mirror or test repository. |
+```kotlin
+embedCode {
+    namedSource(
+        "model",
+        layout.projectDirectory.dir("model"),
+    )
+    namedSource(
+        "database",
+        layout.projectDirectory.dir("database"),
+    )
+    docsPath.set(layout.projectDirectory)
+}
+```
 
-For CI and reproducible builds, pin the executable version while keeping the
-applied plugin version unchanged:
+Embedding instructions refer to these roots with `$model/` and
+`$database/`. `codePath` and `namedSource(...)` are mutually exclusive.
+
+To use a specific Embed Code application release, add its version to the extension:
 
 ```kotlin
 embedCode {
@@ -70,174 +93,68 @@ embedCode {
 }
 ```
 
-Leaving `version` unset follows the latest release and requires a network
-request on every invocation; this is convenient for local use but is not
-recommended for CI.
-
-### Named Source Roots
-
-Use `namedSource` when documentation embeds code from multiple modules:
-
-```kotlin
-embedCode {
-    namedSource(
-        "company-site",
-        layout.projectDirectory.dir("company-site"),
-    )
-    namedSource(
-        "jxbrowser",
-        layout.projectDirectory.dir("browser"),
-    )
-    docsPath.set(layout.projectDirectory)
-}
-```
-
-Embedding instructions select these roots with `$company-site/` and
-`$jxbrowser/`. The plugin writes the corresponding Embed Code configuration
-into the Gradle task's temporary directory and passes it to the executable;
-the project does not need an `embed-code.yml` file.
-
-`codePath` and `namedSource(...)` are mutually exclusive. Multiple independent
-documentation targets are not exposed by this Gradle DSL.
-
-## Run
-
-Check that documentation already contains current source snippets:
+Check that documentation is up to date:
 
 ```bash
 ./gradlew :checkEmbedding
 ```
 
-Update documentation in place:
+Update documentation:
 
 ```bash
 ./gradlew :embedCode
 ```
 
-Both tasks belong to the `embed code` group. `installEmbedCode` is an ungrouped
-internal preparation task, so it is hidden from the normal `tasks` report but
-remains visible with `tasks --all`. Gradle runs it automatically before either
-execution task. Without an explicit `version`, it downloads the current latest
-release on every invocation. A pinned version uses Gradle's normal up-to-date
-behavior and reuses its installed executable.
+The plugin prefers the `checkEmbedding` and `embedCode` task names. If a name
+is already occupied when the plugin is applied, underscores are prepended until
+an available name is found, for example `_embedCode` or `__embedCode`. 
+The fallback cannot account for a conflicting task registered later.
 
-The plugin prefers the `checkEmbedding` and `embedCode` task names. If one is
-already occupied, it prepends underscores until it finds an available name, for
-example `_checkEmbedding` or `__checkEmbedding`. Existing tasks are unchanged;
-use the `tasks` report to see the selected names. This fallback covers tasks
-registered before this plugin is applied. A build must not register either
-preferred name later in the same project. The leading `:` in the commands
-above selects the root task explicitly; without it, a multi-project build may
-also run every subproject task with the same name.
+## Development
 
-The plugin supports the platforms for which Embed Code currently publishes
-release assets. Linux and Windows installation paths run in CI:
-
-- Linux AMD64.
-- Windows AMD64.
-- macOS AMD64 and ARM64.
-
-## Compatibility
-
-The plugin requires Gradle 8.14.4 or newer. Its published classes require Java
-17, and the JVM running the build must also be supported by the selected Gradle
-version. Compatibility is tested with Gradle 8.14.4, Gradle 9.0.0, and the
-current wrapper version, Gradle 9.6.1.
-
-The plugin implementation, build scripts, and tests are written in Kotlin.
-Consumers do not need to install Kotlin or apply a Kotlin plugin because Gradle
-provides the Kotlin runtime. The project uses the Kotlin 2.4.10 compiler but
-targets Kotlin 2.0 language and API levels because Gradle 8.14.4 embeds Kotlin
-2.0.21. Published classes target Java 17 bytecode.
-
-The build uses a JDK 25 toolchain. TestKit runs on a Java 17 toolchain so that
-the same suite can exercise the minimum Gradle version and Gradle 9.0.0.
-
-The plugin declares support for Gradle's configuration cache. Functional tests
-run plugin tasks with `--configuration-cache` and verify cache reuse.
-
-## Develop
-
-Run compilation, plugin validation, unit tests, and TestKit functional tests:
+Run compilation, plugin validation, and the complete test suite:
 
 ```bash
 ./gradlew check
 ```
 
-The regular functional tests create local fake release assets and run them with
-Gradle 8.14.4, Gradle 9.0.0, and the wrapper version. JDK 17 and JDK 25 must
-both be discoverable as Gradle toolchains when running the complete suite
-locally.
+The build uses a JDK 25 toolchain. TestKit uses Java 17 to exercise Gradle
+8.14.4, Gradle 9.0.0, and the current wrapper version. Manually dispatching the
+`Check` workflow also runs a Linux smoke test against the latest real Embed
+Code release.
 
-Manually dispatch the `Check` workflow to run an additional Linux smoke test
-against the latest real release. That test exercises the real CLI flags and
-verifies that Embed Code's YAML parser accepts the generated JSON configuration
-used for named source roots.
+To test the plugin from another checkout without publishing it, include this
+build in the consuming project's `settings.gradle.kts`:
 
-Publish the current plugin version to the local Maven repository when testing
-it from another checkout:
+```kotlin
+pluginManagement {
+    includeBuild("../embed-code-gradle-plugin")
+}
+```
+
+The consuming project can then apply the plugin without a version:
+
+```kotlin
+plugins {
+    id("io.spine.embed-code")
+}
+```
+
+Alternatively, publish the plugin to the local Maven repository:
 
 ```bash
 ./gradlew :gradle-plugin:publishToMavenLocal
 ```
 
-Then make the local repository available to plugin resolution in the consuming
-project's `settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-    repositories {
-        mavenLocal()
-        gradlePluginPortal()
-    }
-}
-```
-
-The `mavenLocal()` declaration must be in `pluginManagement.repositories`.
-Adding it only to the consuming project's regular `repositories` block does not
-make locally published Gradle plugin markers available to the `plugins` block.
-The consuming build can then apply the locally published version normally:
-
-```kotlin
-plugins {
-    id("io.spine.embed-code") version "<version>"
-}
-```
-
-The plugin publication version is configured in `version.gradle.kts`. Embed
-Code application versions are resolved independently at execution time.
-
-## Publish
-
-The plugin is configured for the [Gradle Plugin Portal][plugin-portal]. Its
-publication version does not need to match an Embed Code application version.
-By default, every published plugin version follows the latest stable GitHub
-release; consumers can pin an application version through the extension.
-
-Request validation from the Plugin Portal without publishing a version:
-
-```bash
-./gradlew :gradle-plugin:publishPlugins --validate-only
-```
-
-The Portal task requires API credentials even in validation-only mode. Provide
-them through `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`. The regular CI
-build uses `publishToMavenLocal` instead, which assembles the plugin marker,
-implementation publication, POM metadata, sources, and Javadocs without
-contacting the Portal.
-
-To publish after validation, run:
-
-```bash
-./gradlew :gradle-plugin:publishPlugins
-```
-
-The first publication of `io.spine.embed-code` requires manual Portal approval.
-The publishing account must be able to establish ownership of the `io.spine`
-namespace; this external approval cannot be validated by the local build.
+In this case, add `mavenLocal()` to `pluginManagement.repositories` in the
+consuming project's `settings.gradle.kts`. Adding it only to the regular
+`repositories` block does not make Gradle plugin markers available to the
+`plugins` block.
 
 ## License
 
 The plugin is available under the [Apache License 2.0](LICENSE).
 
-[plugin-portal]: https://plugins.gradle.org/docs/publish-plugin
+[build-badge]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions/workflows/check.yml/badge.svg
+[embed-code]: https://github.com/SpineEventEngine/embed-code-go
+[gh-actions]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions
