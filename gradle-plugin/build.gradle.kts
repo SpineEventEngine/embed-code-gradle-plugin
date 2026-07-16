@@ -24,9 +24,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import io.spine.embedcode.gradle.dependency.Kotlin
 import io.spine.embedcode.gradle.dependency.PluginPublish
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
@@ -36,6 +36,12 @@ plugins {
 }
 
 apply(plugin = PluginPublish.id)
+
+dependencies {
+    // Gradle supplies Kotlin at runtime, so the plugin does not publish the standard library.
+    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+    testCompileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+}
 
 base {
     archivesName.set("embed-code-gradle-plugin")
@@ -50,20 +56,6 @@ tasks.withType<Jar>().configureEach {
     from(rootProject.layout.projectDirectory.file("LICENSE")) {
         into("META-INF")
     }
-}
-
-// Getter docs use concise "Returns..." prose instead of duplicate `@return` tags.
-tasks.withType<Javadoc>().configureEach {
-    (options as StandardJavadocDocletOptions).addBooleanOption("Xdoclint:-missing", true)
-}
-
-tasks.test {
-    inputs.property(
-        "embedCodeGradle7JavaHome",
-        providers.environmentVariable("EMBED_CODE_GRADLE_7_JAVA_HOME")
-            .orElse(providers.environmentVariable("JAVA_HOME_17_X64"))
-            .orElse(""),
-    )
 }
 
 gradlePlugin {

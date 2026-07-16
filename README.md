@@ -133,14 +133,19 @@ release assets:
 
 ## Compatibility
 
-The published plugin implementation targets Java 8 bytecode. Compatibility is
-tested with Gradle 7.6.3 and the current wrapper version, Gradle 9.6.1. The JVM
-used to run Gradle must also satisfy the selected Gradle version's own Java
-compatibility requirements.
+The plugin requires Gradle 8.14.4 or newer. Its published classes require Java
+17, and the JVM running the build must also be supported by the selected Gradle
+version. Compatibility is tested with Gradle 8.14.4, Gradle 9.0.0, and the
+current wrapper version, Gradle 9.6.1.
 
-The plugin build uses Kotlin DSL and Kotlin tests, while its published classes
-are Java. Keeping Kotlin 2.x off the consumer plugin classpath allows older
-Gradle Kotlin DSL compilers to load the plugin.
+The plugin implementation, build scripts, and tests are written in Kotlin.
+Consumers do not need to install Kotlin or apply a Kotlin plugin because Gradle
+provides the Kotlin runtime. The project uses the Kotlin 2.4.10 compiler but
+targets Kotlin 2.0 language and API levels because Gradle 8.14.4 embeds Kotlin
+2.0.21. Published classes target Java 17 bytecode.
+
+The build uses a JDK 25 toolchain. TestKit runs on a Java 17 toolchain so that
+the same suite can exercise the minimum Gradle version and Gradle 9.0.0.
 
 The plugin declares support for Gradle's configuration cache. Functional tests
 run plugin tasks with `--configuration-cache` and verify cache reuse.
@@ -153,8 +158,10 @@ Run compilation, plugin validation, unit tests, and TestKit functional tests:
 ./gradlew check
 ```
 
-The functional tests create local fake release assets. They do not download or
-execute a real GitHub release.
+The functional tests create local fake release assets and run them with Gradle
+8.14.4, Gradle 9.0.0, and the wrapper version. They do not download or execute
+a real GitHub release. JDK 17 and JDK 25 must both be discoverable as Gradle
+toolchains when running the complete suite locally.
 
 Publish the current plugin version to the local Maven repository when testing
 it from another checkout:

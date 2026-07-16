@@ -29,7 +29,7 @@ package io.spine.embedcode.gradle.dependency
 /** JUnit dependencies used by tests. */
 object JUnit {
 
-    const val version = "6.1.1"
+    const val version = "6.1.2"
     private const val group = "org.junit.jupiter"
 
     // https://github.com/junit-team/junit5

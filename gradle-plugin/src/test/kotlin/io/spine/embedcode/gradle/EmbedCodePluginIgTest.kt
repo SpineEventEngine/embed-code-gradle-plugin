@@ -34,7 +34,6 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
@@ -134,22 +133,14 @@ internal class EmbedCodePluginIgTest {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `run check mode with Gradle 7_6_3`() {
-        val javaHome = System.getenv("EMBED_CODE_GRADLE_7_JAVA_HOME")
-            ?: System.getenv("JAVA_HOME_17_X64")
-        assumeTrue(
-            !javaHome.isNullOrBlank(),
-            "Set EMBED_CODE_GRADLE_7_JAVA_HOME to a JDK supported by Gradle 7.6.3.",
-        )
+    fun `run check mode with Gradle 8_14_4`() {
+        runCheckModeWithGradle("8.14.4")
+    }
 
-        val result = runner(":checkEmbedding", useConfigurationCache = false)
-            .withGradleVersion("7.6.3")
-            .withEnvironment(System.getenv() + ("JAVA_HOME" to javaHome))
-            .build()
-
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "check"
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `run check mode with Gradle 9_0_0`() {
+        runCheckModeWithGradle("9.0.0")
     }
 
     @Test
@@ -280,6 +271,17 @@ internal class EmbedCodePluginIgTest {
             .withProjectDir(projectDirectory.toFile())
             .withArguments(gradleArguments)
             .withPluginClasspath()
+    }
+
+    /** Runs check mode with [gradleVersion]. */
+    private fun runCheckModeWithGradle(gradleVersion: String) {
+        val result = runner(":checkEmbedding")
+            .withGradleVersion(gradleVersion)
+            .build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "check"
     }
 
     /** Writes a consuming build configured entirely through the plugin extension. */
