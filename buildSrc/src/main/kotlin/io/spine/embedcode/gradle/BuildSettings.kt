@@ -26,7 +26,9 @@
 
 package io.spine.embedcode.gradle
 
-/** Build-wide Java and bytecode targets. */
+/**
+ * Build-wide Java and bytecode targets.
+ */
 object BuildSettings {
 
     /** Java toolchain version used to build and test the project. */

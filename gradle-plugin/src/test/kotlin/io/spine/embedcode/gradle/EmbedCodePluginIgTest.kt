@@ -332,7 +332,9 @@ internal class EmbedCodePluginIgTest {
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "embed"
     }
 
-    /** Creates a runner using the plugin-under-test classpath. */
+    /**
+     * Creates a runner using the plugin-under-test classpath.
+     */
     private fun runner(
         vararg arguments: String,
         useConfigurationCache: Boolean = true,
@@ -348,7 +350,9 @@ internal class EmbedCodePluginIgTest {
             .withPluginClasspath()
     }
 
-    /** Runs check mode with [gradleVersion]. */
+    /**
+     * Runs check mode with [gradleVersion].
+     */
     private fun runCheckModeWithGradle(gradleVersion: String) {
         val result = runner(":checkEmbedding")
             .withGradleVersion(gradleVersion)
@@ -359,7 +363,9 @@ internal class EmbedCodePluginIgTest {
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "check"
     }
 
-    /** Writes a consuming build configured entirely through the plugin extension. */
+    /**
+     * Writes a consuming build configured entirely through the plugin extension.
+     */
     private fun writeBuildFile(
         version: String? = null,
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
@@ -387,7 +393,9 @@ internal class EmbedCodePluginIgTest {
         )
     }
 
-    /** Writes a consuming build with two named source roots and no YAML file. */
+    /**
+     * Writes a consuming build with two named source roots and no YAML file.
+     */
     private fun writeNamedSourcesBuildFile(
         includeDirectSource: Boolean = false,
         firstSourceName: String = "company-site",
@@ -423,7 +431,9 @@ internal class EmbedCodePluginIgTest {
         )
     }
 
-    /** Creates a host-specific fake release asset that records received arguments. */
+    /**
+     * Creates a host-specific fake release asset that records received arguments.
+     */
     private fun createFakeRelease(root: Path, version: String = TEST_RELEASE_VERSION) {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),

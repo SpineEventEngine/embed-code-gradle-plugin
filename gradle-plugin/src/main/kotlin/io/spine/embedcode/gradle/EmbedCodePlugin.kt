@@ -30,10 +30,14 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.TaskProvider
 
-/** Registers automatic installation and execution tasks for Embed Code. */
+/**
+ * Registers automatic installation and execution tasks for Embed Code.
+ */
 public class EmbedCodePlugin : Plugin<Project> {
 
-    /** Applies the plugin to [project]. */
+    /**
+     * Applies the plugin to [project].
+     */
     override fun apply(project: Project) {
         val checkTaskName = availableTaskName(project, "checkEmbedding")
         val embedTaskName = availableTaskName(project, "embedCode")
@@ -95,7 +99,9 @@ public class EmbedCodePlugin : Plugin<Project> {
             "https://github.com/SpineEventEngine/embed-code-go/releases"
         const val TASK_GROUP = "embed code"
 
-        /** Registers one mode-specific execution task backed by [installTask]. */
+        /**
+         * Registers one mode-specific execution task backed by [installTask].
+         */
         fun registerExecutionTask(
             project: Project,
             extension: EmbedCodeExtension,
@@ -122,7 +128,9 @@ public class EmbedCodePlugin : Plugin<Project> {
             }
         }
 
-        /** Returns [preferredName], prepending underscores until it is unused. */
+        /**
+         * Returns [preferredName], prepending underscores until it is unused.
+         */
         fun availableTaskName(project: Project, preferredName: String): String {
             var candidate = preferredName
             while (project.tasks.names.contains(candidate)) {

@@ -78,7 +78,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:OutputFile
     public abstract val executableFile: RegularFileProperty
 
-    /** Downloads, extracts when necessary, and marks the executable runnable. */
+    /**
+     * Downloads, extracts when necessary, and marks the executable runnable.
+     */
     @TaskAction
     public fun install() {
         val requestedVersion = version.orNull?.trim()
@@ -123,7 +125,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
 
-        /** Returns the release asset URI for the latest or explicitly requested version. */
+        /**
+         * Returns the release asset URI for the latest or explicitly requested version.
+         */
         fun releaseAsset(baseUrl: String, requestedVersion: String?, asset: String): URI {
             if (requestedVersion == null) {
                 return URI.create("$baseUrl/latest/download/$asset")
@@ -136,7 +140,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             return URI.create("$baseUrl/download/$releaseTag/$asset")
         }
 
-        /** Downloads [source] into [destination], reporting HTTP failures clearly. */
+        /**
+         * Downloads [source] into [destination], reporting HTTP failures clearly.
+         */
         fun download(source: URI, destination: Path) {
             var connection: URLConnection? = null
             try {
@@ -168,7 +174,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
         }
 
-        /** Extracts [entryName] from [archive] into [destination]. */
+        /**
+         * Extracts [entryName] from [archive] into [destination].
+         */
         @Throws(IOException::class)
         fun extractExecutable(archive: Path, entryName: String, destination: Path) {
             ZipInputStream(Files.newInputStream(archive)).use { zip ->
@@ -194,7 +202,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             throw GradleException("Archive `$archive` does not contain `$entryName`.")
         }
 
-        /** Copies all bytes from [input] into [output]. */
+        /**
+         * Copies all bytes from [input] into [output].
+         */
         @Throws(IOException::class)
         fun copy(input: InputStream, output: OutputStream) {
             val buffer = ByteArray(BUFFER_SIZE)
@@ -205,7 +215,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
         }
 
-        /** Moves [source] to [destination], atomically when supported. */
+        /**
+         * Moves [source] to [destination], atomically when supported.
+         */
         @Throws(IOException::class)
         fun moveAtomically(source: Path, destination: Path) {
             try {
@@ -220,7 +232,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
         }
 
-        /** Removes trailing slashes without changing a URL scheme. */
+        /**
+         * Removes trailing slashes without changing a URL scheme.
+         */
         fun trimTrailingSlashes(value: String): String {
             var end = value.length
             while (end > 0 && value[end - 1] == '/') {

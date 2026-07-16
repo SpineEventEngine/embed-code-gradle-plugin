@@ -26,7 +26,9 @@
 
 package io.spine.embedcode.gradle.dependency
 
-/** Kotlin dependencies used by the project. */
+/**
+ * Kotlin dependencies used by the project.
+ */
 object Kotlin {
 
     const val version = "2.4.10"

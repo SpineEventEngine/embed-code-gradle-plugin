@@ -29,7 +29,9 @@ package io.spine.embedcode.gradle
 import org.gradle.api.GradleException
 import java.util.Locale
 
-/** A released executable selected for an operating system and architecture. */
+/**
+ * A released executable selected for an operating system and architecture.
+ */
 internal data class EmbedCodePlatform(
     val assetName: String,
     val executableName: String,
@@ -37,7 +39,9 @@ internal data class EmbedCodePlatform(
 
     companion object {
 
-        /** Returns the stable installed executable name for [osName]. */
+        /**
+         * Returns the stable installed executable name for [osName].
+         */
         fun installedExecutableName(osName: String): String =
             if (osName.lowercase(Locale.ROOT).contains("windows")) {
                 "embed-code.exe"
@@ -45,7 +49,9 @@ internal data class EmbedCodePlatform(
                 "embed-code"
             }
 
-        /** Selects the release asset for [osName] and [architecture]. */
+        /**
+         * Selects the release asset for [osName] and [architecture].
+         */
         fun detect(osName: String, architecture: String): EmbedCodePlatform {
             val os = osName.lowercase(Locale.ROOT)
             val arch = architecture.lowercase(Locale.ROOT)

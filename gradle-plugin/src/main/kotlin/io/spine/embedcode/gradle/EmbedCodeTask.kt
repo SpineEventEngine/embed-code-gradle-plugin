@@ -54,7 +54,9 @@ import java.util.Locale
 import java.util.TreeMap
 import javax.inject.Inject
 
-/** Runs Embed Code in either check or embed mode. */
+/**
+ * Runs Embed Code in either check or embed mode.
+ */
 @DisableCachingByDefault(because = "Embed Code checks or updates documentation files in place")
 public abstract class EmbedCodeTask : DefaultTask() {
 
@@ -115,7 +117,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
     @get:Internal
     public abstract val workingDirectory: DirectoryProperty
 
-    /** Executes Embed Code with arguments derived from the Gradle extension. */
+    /**
+     * Executes Embed Code with arguments derived from the Gradle extension.
+     */
     @TaskAction
     public fun runEmbedCode() {
         val configuredSources = TreeMap(namedSources.get())
@@ -152,7 +156,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
         }
     }
 
-    /** Writes the generated configuration used when named source roots are configured. */
+    /**
+     * Writes the generated configuration used when named source roots are configured.
+     */
     private fun writeNamedSourceConfiguration(configuredSources: Map<String, String>): Path {
         val normalizedSources = TreeMap<String, String>()
         for (source in configuredSources.entries) {
@@ -192,7 +198,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
 
     private companion object {
 
-        /** Creates a JSON document accepted by Embed Code's YAML configuration parser. */
+        /**
+         * Creates a JSON document accepted by Embed Code's YAML configuration parser.
+         */
         fun createConfigurationJson(
             namedSources: Map<String, String>,
             docsPath: String,
@@ -230,7 +238,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
             return json.toString()
         }
 
-        /** Appends a JSON array containing [values]. */
+        /**
+         * Appends a JSON array containing [values].
+         */
         fun appendJsonArray(json: StringBuilder, values: List<String>) {
             json.append('[')
             for (index in values.indices) {
@@ -242,7 +252,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
             json.append(']')
         }
 
-        /** Appends [value] as an escaped JSON string. */
+        /**
+         * Appends [value] as an escaped JSON string.
+         */
         fun appendJsonString(json: StringBuilder, value: String) {
             json.append('"')
             for (character in value) {

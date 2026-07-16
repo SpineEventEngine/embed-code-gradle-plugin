@@ -26,7 +26,9 @@
 
 package io.spine.embedcode.gradle.dependency
 
-/** JUnit dependencies used by tests. */
+/**
+ * JUnit dependencies used by tests.
+ */
 object JUnit {
 
     const val version = "6.1.2"
