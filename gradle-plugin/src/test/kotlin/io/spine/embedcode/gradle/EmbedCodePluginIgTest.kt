@@ -40,7 +40,7 @@ import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Properties
+import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -94,6 +94,7 @@ internal class EmbedCodePluginIgTest {
         val result = runner(":checkEmbedding").build()
 
         result.output shouldContain "Reusing configuration cache."
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
@@ -105,7 +106,7 @@ internal class EmbedCodePluginIgTest {
             System.getProperty("os.arch"),
         ).executableName
         val installedExecutable = projectDirectory.resolve(
-            "build/embed-code/${bundledVersion()}/$executableName",
+            "build/embed-code/latest/$executableName",
         )
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
@@ -114,7 +115,7 @@ internal class EmbedCodePluginIgTest {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `allow overriding the bundled Embed Code version`() {
+    fun `allow overriding the latest Embed Code version`() {
         val overrideVersion = "0.0.0-test"
         createFakeRelease(releaseDirectory, overrideVersion)
         writeBuildFile(overrideVersion)
@@ -154,6 +155,7 @@ internal class EmbedCodePluginIgTest {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reuse installation when running embed mode`() {
+        writeBuildFile(TEST_RELEASE_VERSION)
         runner(":checkEmbedding").build()
         releaseDirectory.toFile().deleteRecursively()
 
@@ -333,13 +335,15 @@ internal class EmbedCodePluginIgTest {
     }
 
     /** Creates a host-specific fake release asset that records received arguments. */
-    private fun createFakeRelease(root: Path, version: String = bundledVersion()) {
+    private fun createFakeRelease(root: Path, version: String = TEST_RELEASE_VERSION) {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
         )
-        val versionDirectory = root.resolve("v$version")
+        val versionDirectory = root.resolve("download/v$version")
+        val latestDirectory = root.resolve("latest/download")
         Files.createDirectories(versionDirectory)
+        Files.createDirectories(latestDirectory)
         val executable = projectDirectory.resolve(platform.executableName)
         Files.writeString(
             executable,
@@ -367,18 +371,15 @@ internal class EmbedCodePluginIgTest {
         } else {
             Files.copy(executable, asset)
         }
+        Files.copy(
+            asset,
+            latestDirectory.resolve(platform.assetName),
+            StandardCopyOption.REPLACE_EXISTING,
+        )
     }
 
-    /** Returns the Embed Code version bundled into the plugin resources. */
-    private fun bundledVersion(): String {
-        val properties = Properties()
-        val resource = requireNotNull(
-            EmbedCodePlugin::class.java.getResourceAsStream(
-                "/io/spine/embedcode/gradle/version.properties",
-            ),
-        )
-        resource.use { properties.load(it) }
-        return requireNotNull(properties.getProperty("version")).trim()
+    private companion object {
+        const val TEST_RELEASE_VERSION = "1.2.4-test"
     }
 }
 

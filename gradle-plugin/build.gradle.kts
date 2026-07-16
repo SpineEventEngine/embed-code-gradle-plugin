@@ -66,14 +66,6 @@ tasks.test {
     )
 }
 
-tasks.processResources {
-    val versionProperties = mapOf("embedCodeVersion" to project.version.toString())
-    inputs.properties(versionProperties)
-    filesMatching("**/version.properties") {
-        expand(versionProperties)
-    }
-}
-
 gradlePlugin {
     website.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
     vcsUrl.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")

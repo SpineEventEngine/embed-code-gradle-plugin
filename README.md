@@ -43,25 +43,26 @@ embedCode {
 ```
 
 `docsPath` is required. Configure either one unnamed `codePath` or one or more
-named sources. By default, the plugin downloads the Embed Code release with the
-same version as the plugin. The other properties use the same defaults as the
-Embed Code command-line application.
+named sources. By default, the plugin downloads the latest Embed Code release
+from GitHub Releases. Plugin and application versions are independent. The
+other properties use the same defaults as the Embed Code command-line
+application.
 
-| Property | Default | Purpose |
-| --- | --- | --- |
-| `version` | Plugin version | Selects the executable release. |
-| `codePath` | Required without named sources | Sets one unnamed source root. |
-| `namedSource(name, directory)` | Required without `codePath` | Adds a `$name/` source root. |
-| `docsPath` | Required | Sets the documentation root to scan. |
-| `docIncludes` | `**/*.md`, `**/*.html` | Selects documentation files. |
-| `docExcludes` | Empty | Skips matching documentation files. |
-| `separator` | `...` | Separates joined fragment parts. |
-| `info` | `false` | Enables informational logging. |
-| `stacktrace` | `false` | Prints stack traces after panics. |
-| `downloadBaseUrl` | GitHub Releases | Selects a release mirror or test repository. |
+| Property                       | Default                        | Purpose                                      |
+|--------------------------------|--------------------------------|----------------------------------------------|
+| `version`                      | Latest GitHub release          | Pins a specific executable release when set. |
+| `codePath`                     | Required without named sources | Sets one unnamed source root.                |
+| `namedSource(name, directory)` | Required without `codePath`    | Adds a `$name/` source root.                 |
+| `docsPath`                     | Required                       | Sets the documentation root to scan.         |
+| `docIncludes`                  | `**/*.md`, `**/*.html`         | Selects documentation files.                 |
+| `docExcludes`                  | Empty                          | Skips matching documentation files.          |
+| `separator`                    | `...`                          | Separates joined fragment parts.             |
+| `info`                         | `false`                        | Enables informational logging.               |
+| `stacktrace`                   | `false`                        | Prints stack traces after panics.            |
+| `downloadBaseUrl`              | GitHub Releases                | Selects a release mirror or test repository. |
 
-If a matching CLI release has a problem, override only the executable version
-while keeping the applied plugin version unchanged:
+For reproducible builds, or if the latest CLI release has a problem, pin only
+the executable version while keeping the applied plugin version unchanged:
 
 ```kotlin
 embedCode {
@@ -112,8 +113,9 @@ Update documentation in place:
 Both tasks belong to the `embed code` group. `installEmbedCode` is an ungrouped
 internal preparation task, so it is hidden from the normal `tasks` report but
 remains visible with `tasks --all`. Gradle runs it automatically before either
-execution task and reuses its output until the requested version, platform,
-download URL, or build directory changes.
+execution task. Without an explicit `version`, it downloads the current latest
+release on every invocation. A pinned version uses Gradle's normal up-to-date
+behavior and reuses its installed executable.
 
 The plugin prefers the `checkEmbedding` and `embedCode` task names. If one is
 already occupied, it prepends underscores until it finds an available name, for
@@ -184,16 +186,15 @@ plugins {
 }
 ```
 
-The plugin publication version and its default Embed Code executable version
-are both read from `version.gradle.kts`.
+The plugin publication version is configured in `version.gradle.kts`. Embed
+Code application versions are resolved independently at execution time.
 
 ## Publish
 
-The plugin is configured for the [Gradle Plugin Portal][plugin-portal]. Before
-publishing, verify that the matching `v<version>` GitHub release contains all
-platform executables. The plugin uses its own version as the default executable
-version, so publishing it before the binaries would leave new installations
-without a downloadable asset.
+The plugin is configured for the [Gradle Plugin Portal][plugin-portal]. Its
+publication version does not need to match an Embed Code application version.
+By default, every published plugin version follows the latest stable GitHub
+release; consumers can pin an application version through the extension.
 
 Request validation from the Plugin Portal without publishing a version:
 

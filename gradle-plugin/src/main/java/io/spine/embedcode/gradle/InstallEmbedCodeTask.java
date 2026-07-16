@@ -31,6 +31,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
@@ -51,22 +52,24 @@ import java.util.zip.ZipInputStream;
 /**
  * Downloads and prepares the Embed Code executable selected for the host.
  *
- * <p>The output file gives Gradle normal up-to-date behavior, so a successfully
- * installed version is reused by later invocations.</p>
+ * <p>An explicitly selected version is reused using Gradle's normal up-to-date
+ * behavior. The latest release is downloaded on every invocation so that it
+ * cannot remain stale behind an existing output.</p>
  */
 @DisableCachingByDefault(
-        because = "The downloaded release asset is already reused as a task output"
+        because = "Release assets come from external URLs that may change"
 )
 public abstract class InstallEmbedCodeTask extends DefaultTask {
 
     private static final int CONNECT_TIMEOUT_MILLIS = 30_000;
     private static final int READ_TIMEOUT_MILLIS = 120_000;
 
-    /** Returns the Embed Code release version. */
+    /** Returns an optional Embed Code release version. */
     @Input
+    @Optional
     public abstract Property<String> getVersion();
 
-    /** Returns the base URL containing versioned release directories. */
+    /** Returns the base URL of the Embed Code releases. */
     @Input
     public abstract Property<String> getDownloadBaseUrl();
 
@@ -85,17 +88,17 @@ public abstract class InstallEmbedCodeTask extends DefaultTask {
     /** Downloads, extracts when necessary, and marks the executable runnable. */
     @TaskAction
     public void install() {
-        String requestedVersion = getVersion().get().trim();
-        if (requestedVersion.isEmpty()) {
-            throw new GradleException("Embed Code version must not be empty.");
+        String requestedVersion = getVersion().getOrNull();
+        boolean useLatest = requestedVersion == null;
+        if (!useLatest) {
+            requestedVersion = requestedVersion.trim();
+            if (requestedVersion.isEmpty()) {
+                throw new GradleException("Embed Code version must not be empty.");
+            }
         }
-
-        String releaseTag = requestedVersion.startsWith("v")
-                ? requestedVersion
-                : "v" + requestedVersion;
         String asset = getAssetName().get();
         String baseUrl = trimTrailingSlashes(getDownloadBaseUrl().get());
-        URI source = URI.create(baseUrl + '/' + releaseTag + '/' + asset);
+        URI source = releaseAsset(baseUrl, requestedVersion, asset);
         Path destination = getExecutableFile().get().getAsFile().toPath();
         Path download = getTemporaryDir().toPath().resolve(asset);
         Path preparedExecutable = getTemporaryDir().toPath()
@@ -103,7 +106,8 @@ public abstract class InstallEmbedCodeTask extends DefaultTask {
 
         try {
             Files.createDirectories(destination.getParent());
-            getLogger().lifecycle("Downloading Embed Code {} from {}", requestedVersion, source);
+            String release = useLatest ? "latest release" : requestedVersion;
+            getLogger().lifecycle("Downloading Embed Code {} from {}", release, source);
             download(source, download);
 
             if (asset.endsWith(".zip")) {
@@ -124,6 +128,17 @@ public abstract class InstallEmbedCodeTask extends DefaultTask {
                     exception
             );
         }
+    }
+
+    /** Returns the release asset URI for the latest or explicitly requested version. */
+    private static URI releaseAsset(String baseUrl, String requestedVersion, String asset) {
+        if (requestedVersion == null) {
+            return URI.create(baseUrl + "/latest/download/" + asset);
+        }
+        String releaseTag = requestedVersion.startsWith("v")
+                ? requestedVersion
+                : "v" + requestedVersion;
+        return URI.create(baseUrl + "/download/" + releaseTag + '/' + asset);
     }
 
     /** Downloads {@code source} into {@code destination}, reporting HTTP failures clearly. */

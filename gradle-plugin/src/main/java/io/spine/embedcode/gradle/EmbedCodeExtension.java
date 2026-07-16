@@ -43,7 +43,7 @@ import org.gradle.api.provider.Provider;
  */
 public abstract class EmbedCodeExtension {
 
-    /** Returns the release version to download and run, defaulting to the plugin version. */
+    /** Returns an optional release version, with the latest release used when absent. */
     public abstract Property<String> getVersion();
 
     /** Returns the root directory containing source files used by embedding instructions. */
@@ -107,10 +107,12 @@ public abstract class EmbedCodeExtension {
     public abstract Property<Boolean> getStacktrace();
 
     /**
-     * <p>The plugin appends {@code /v<version>/<platform-asset>} to this URL.
-     * This property primarily supports release mirrors and functional testing.</p>
+     * <p>The plugin appends {@code /latest/download/<platform-asset>} when no
+     * version is configured, or {@code /download/v<version>/<platform-asset>}
+     * for an explicit version. This property primarily supports release
+     * mirrors and functional testing.</p>
      *
-     * @return the base URL containing versioned Embed Code release directories
+     * @return the base URL of the Embed Code releases
      */
     public abstract Property<String> getDownloadBaseUrl();
 }
