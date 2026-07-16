@@ -183,6 +183,40 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
+    fun `reuse cached executable when the latest release check fails`() {
+        val latestVersion = AtomicReference(TEST_RELEASE_VERSION)
+        val server = startReleaseServer(
+            latestVersion,
+            AtomicInteger(),
+            AtomicInteger(),
+        )
+        writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+        try {
+            runner(":installEmbedCode").build()
+        } finally {
+            server.stop(0)
+        }
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "Could not check the latest Embed Code release"
+        result.output shouldContain "Reusing the cached executable"
+    }
+
+    @Test
+    fun `report a failed latest release check without a cached executable`() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        val baseUrl = "http://127.0.0.1:${server.address.port}/releases"
+        server.stop(0)
+        writeBuildFile(downloadBaseUrl = baseUrl)
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "Could not resolve the latest Embed Code release"
+    }
+
+    @Test
     fun `report a missing latest executable in offline mode`() {
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 

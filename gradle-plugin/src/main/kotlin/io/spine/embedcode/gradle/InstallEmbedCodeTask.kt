@@ -53,7 +53,8 @@ import java.util.zip.ZipInputStream
  *
  * An explicitly selected version is reused using Gradle's normal up-to-date
  * behavior. For the latest release, the remote version is checked before an
- * existing executable is replaced.
+ * existing executable is replaced. When the check fails, for example without
+ * network access, a previously installed executable is reused.
  */
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
@@ -109,7 +110,20 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             return
         }
         val resolvedVersion = if (requestedVersion == null) {
-            resolveLatestVersion(baseUrl)
+            try {
+                resolveLatestVersion(baseUrl)
+            } catch (exception: GradleException) {
+                if (!Files.isRegularFile(destination)) {
+                    throw exception
+                }
+                logger.warn(
+                    "Could not check the latest Embed Code release ({}). " +
+                        "Reusing the cached executable from `{}`.",
+                    exception.message,
+                    destination,
+                )
+                return
+            }
         } else {
             null
         }

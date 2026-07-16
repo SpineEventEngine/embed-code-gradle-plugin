@@ -55,6 +55,8 @@ public class EmbedCodePlugin : Plugin<Project> {
 
         val operatingSystem = System.getProperty("os.name").orEmpty()
         val architecture = System.getProperty("os.arch").orEmpty()
+        // The installed file name always tracks the host operating system.
+        // Overriding the task's `operatingSystem` input changes asset selection only.
         val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
         val requestedVersion = extension.version.map { version -> version.trim() }
         val installTask = project.tasks.register(
