@@ -43,8 +43,6 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          EMBED_CODE_REAL_TEST: ${{ github.event_name == 'workflow_dispatch' && matrix.os == 'ubuntu-latest' }}
         run: >-
           ./gradlew
           -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME"

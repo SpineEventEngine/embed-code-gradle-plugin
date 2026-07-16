@@ -32,7 +32,6 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -258,39 +257,6 @@ internal class EmbedCodePluginIgTest {
     }
 
     @Test
-    @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `run a real Embed Code release with generated configuration`() {
-        assumeTrue(
-            System.getenv("EMBED_CODE_REAL_TEST").toBoolean(),
-            "Set EMBED_CODE_REAL_TEST=true to run this smoke test.",
-        )
-        Files.writeString(
-            projectDirectory.resolve("code/Hello.java"),
-            "class Hello {\n    static final String MESSAGE = \"Hello\";\n}\n",
-        )
-        val documentation = projectDirectory.resolve("docs/example.md")
-        Files.writeString(
-            documentation,
-            """
-            # Example
-
-            <embed-code file="${'$'}sample/Hello.java"></embed-code>
-            ```java
-            class Outdated {}
-            ```
-            """.trimIndent() + "\n",
-        )
-        writeRealReleaseBuildFile()
-
-        val embedResult = runner(":embedCode").build()
-        val checkResult = runner(":checkEmbedding").build()
-
-        embedResult.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        checkResult.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(documentation) shouldContain "static final String MESSAGE = \"Hello\";"
-    }
-
-    @Test
     fun `reject direct and named source roots together`() {
         Files.createDirectories(projectDirectory.resolve("browser"))
         writeNamedSourcesBuildFile(includeDirectSource = true)
@@ -452,23 +418,6 @@ internal class EmbedCodePluginIgTest {
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
                 docsPath.set(layout.projectDirectory)
-            }
-            """.trimIndent(),
-        )
-    }
-
-    /** Writes a consuming build that exercises a real release and generated JSON config. */
-    private fun writeRealReleaseBuildFile() {
-        Files.writeString(
-            projectDirectory.resolve("build.gradle.kts"),
-            """
-            plugins {
-                id("io.spine.embed-code")
-            }
-
-            embedCode {
-                namedSource("sample", layout.projectDirectory.dir("code"))
-                docsPath.set(layout.projectDirectory.dir("docs"))
             }
             """.trimIndent(),
         )

@@ -118,29 +118,7 @@ Run compilation, plugin validation, and the complete test suite:
 ./gradlew check
 ```
 
-The build uses a JDK 25 toolchain. TestKit uses Java 17 to exercise Gradle
-8.14.4, Gradle 9.0.0, and the current wrapper version. Manually dispatching the
-`Check` workflow also runs a Linux smoke test against the latest real Embed
-Code release.
-
-To test the plugin from another checkout without publishing it, include this
-build in the consuming project's `settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-    includeBuild("../embed-code-gradle-plugin")
-}
-```
-
-The consuming project can then apply the plugin without a version:
-
-```kotlin
-plugins {
-    id("io.spine.embed-code")
-}
-```
-
-Alternatively, publish the plugin to the local Maven repository:
+To test the plugin publish it to the local Maven repository:
 
 ```bash
 ./gradlew :gradle-plugin:publishToMavenLocal
