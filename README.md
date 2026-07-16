@@ -61,14 +61,18 @@ application.
 | `stacktrace`                   | `false`                        | Prints stack traces after panics.            |
 | `downloadBaseUrl`              | GitHub Releases                | Selects a release mirror or test repository. |
 
-For reproducible builds, or if the latest CLI release has a problem, pin only
-the executable version while keeping the applied plugin version unchanged:
+For CI and reproducible builds, pin the executable version while keeping the
+applied plugin version unchanged:
 
 ```kotlin
 embedCode {
-    version.set("1.2.3")
+    version.set("1.2.4")
 }
 ```
+
+Leaving `version` unset follows the latest release and requires a network
+request on every invocation; this is convenient for local use but is not
+recommended for CI.
 
 ### Named Source Roots
 
@@ -120,12 +124,14 @@ behavior and reuses its installed executable.
 The plugin prefers the `checkEmbedding` and `embedCode` task names. If one is
 already occupied, it prepends underscores until it finds an available name, for
 example `_checkEmbedding` or `__checkEmbedding`. Existing tasks are unchanged;
-use the `tasks` report to see the selected names. The leading `:` in the
-commands above selects the root task explicitly; without it, a multi-project
-build may also run every subproject task with the same name.
+use the `tasks` report to see the selected names. This fallback covers tasks
+registered before this plugin is applied. A build must not register either
+preferred name later in the same project. The leading `:` in the commands
+above selects the root task explicitly; without it, a multi-project build may
+also run every subproject task with the same name.
 
 The plugin supports the platforms for which Embed Code currently publishes
-release assets:
+release assets. Linux and Windows installation paths run in CI:
 
 - Linux AMD64.
 - Windows AMD64.
@@ -158,10 +164,15 @@ Run compilation, plugin validation, unit tests, and TestKit functional tests:
 ./gradlew check
 ```
 
-The functional tests create local fake release assets and run them with Gradle
-8.14.4, Gradle 9.0.0, and the wrapper version. They do not download or execute
-a real GitHub release. JDK 17 and JDK 25 must both be discoverable as Gradle
-toolchains when running the complete suite locally.
+The regular functional tests create local fake release assets and run them with
+Gradle 8.14.4, Gradle 9.0.0, and the wrapper version. JDK 17 and JDK 25 must
+both be discoverable as Gradle toolchains when running the complete suite
+locally.
+
+Manually dispatch the `Check` workflow to run an additional Linux smoke test
+against the latest real release. That test exercises the real CLI flags and
+verifies that Embed Code's YAML parser accepts the generated JSON configuration
+used for named source roots.
 
 Publish the current plugin version to the local Maven repository when testing
 it from another checkout:

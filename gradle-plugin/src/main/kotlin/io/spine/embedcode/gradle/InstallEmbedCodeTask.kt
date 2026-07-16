@@ -66,13 +66,13 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:Input
     public abstract val downloadBaseUrl: Property<String>
 
-    /** The platform-specific release asset name. */
+    /** The operating system used to select a release asset. */
     @get:Input
-    public abstract val assetName: Property<String>
+    public abstract val operatingSystem: Property<String>
 
-    /** The executable name expected inside an archive or used directly. */
+    /** The architecture used to select a release asset. */
     @get:Input
-    public abstract val executableName: Property<String>
+    public abstract val architecture: Property<String>
 
     /** The installed executable used by Embed Code execution tasks. */
     @get:OutputFile
@@ -85,12 +85,16 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         if (requestedVersion != null && requestedVersion.isEmpty()) {
             throw GradleException("Embed Code version must not be empty.")
         }
-        val asset = assetName.get()
+        val platform = EmbedCodePlatform.detect(
+            operatingSystem.get(),
+            architecture.get(),
+        )
+        val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())
         val source = releaseAsset(baseUrl, requestedVersion, asset)
         val destination = executableFile.get().asFile.toPath()
         val download = temporaryDir.toPath().resolve(asset)
-        val preparedExecutable = temporaryDir.toPath().resolve(executableName.get())
+        val preparedExecutable = temporaryDir.toPath().resolve(platform.executableName)
 
         try {
             Files.createDirectories(destination.parent)
@@ -99,7 +103,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             download(source, download)
 
             if (asset.endsWith(".zip")) {
-                extractExecutable(download, executableName.get(), preparedExecutable)
+                extractExecutable(download, platform.executableName, preparedExecutable)
             } else {
                 Files.move(download, preparedExecutable, StandardCopyOption.REPLACE_EXISTING)
             }

@@ -68,6 +68,16 @@ internal class EmbedCodePlatformSpec {
     }
 
     @Test
+    fun `use a stable executable name on Unix`() {
+        assertEquals("embed-code", EmbedCodePlatform.installedExecutableName("Linux"))
+    }
+
+    @Test
+    fun `keep the executable suffix on Windows`() {
+        assertEquals("embed-code.exe", EmbedCodePlatform.installedExecutableName("Windows 11"))
+    }
+
+    @Test
     fun `reject platform without release binary`() {
         val error = assertThrows(GradleException::class.java) {
             EmbedCodePlatform.detect("Linux", "aarch64")

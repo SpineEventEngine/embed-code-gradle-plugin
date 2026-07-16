@@ -43,6 +43,8 @@ import org.gradle.api.provider.Provider
  */
 public abstract class EmbedCodeExtension {
 
+    private val configuredSourceNames = mutableSetOf<String>()
+
     /** An optional release version, with the latest release used when absent. */
     public abstract val version: Property<String>
 
@@ -62,7 +64,7 @@ public abstract class EmbedCodeExtension {
      * @param directory the source root directory
      */
     public fun namedSource(name: String, directory: Directory) {
-        val normalizedName = validateSourceName(name)
+        val normalizedName = registerSourceName(name)
         namedSources.put(normalizedName, directory.asFile.absolutePath)
         namedSourceDirectories.from(directory)
     }
@@ -74,7 +76,7 @@ public abstract class EmbedCodeExtension {
      * @param directory the source root provider, including its task dependency
      */
     public fun namedSource(name: String, directory: Provider<Directory>) {
-        val normalizedName = validateSourceName(name)
+        val normalizedName = registerSourceName(name)
         namedSources.put(
             normalizedName,
             directory.map { value -> value.asFile.absolutePath },
@@ -110,10 +112,15 @@ public abstract class EmbedCodeExtension {
      */
     public abstract val downloadBaseUrl: Property<String>
 
-    private fun validateSourceName(name: String): String {
+    private fun registerSourceName(name: String): String {
         val normalizedName = name.trim()
         if (normalizedName.isEmpty()) {
             throw InvalidUserDataException("An Embed Code source name must not be empty.")
+        }
+        if (!configuredSourceNames.add(normalizedName)) {
+            throw InvalidUserDataException(
+                "Embed Code source `$normalizedName` is already configured.",
+            )
         }
         return normalizedName
     }

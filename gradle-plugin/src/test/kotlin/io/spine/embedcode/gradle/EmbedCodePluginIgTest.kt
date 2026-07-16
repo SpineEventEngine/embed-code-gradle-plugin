@@ -26,17 +26,20 @@
 
 package io.spine.embedcode.gradle
 
+import com.sun.net.httpserver.HttpServer
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
+import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -100,10 +103,9 @@ internal class EmbedCodePluginIgTest {
     @Test
     fun `install platform release asset`() {
         val result = runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.detect(
+        val executableName = EmbedCodePlatform.installedExecutableName(
             System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-        ).executableName
+        )
         val installedExecutable = projectDirectory.resolve(
             "build/embed-code/latest/$executableName",
         )
@@ -122,13 +124,69 @@ internal class EmbedCodePluginIgTest {
         val result = runner(":checkEmbedding").build()
 
         result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
-        val executableName = EmbedCodePlatform.detect(
+        val executableName = EmbedCodePlatform.installedExecutableName(
             System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-        ).executableName
+        )
         Files.exists(
             projectDirectory.resolve("build/embed-code/$overrideVersion/$executableName"),
         ) shouldBe true
+    }
+
+    @Test
+    fun `defer unsupported platform failure until installation`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+            plugins {
+                id("io.spine.embed-code")
+            }
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                operatingSystem.set("Linux")
+                architecture.set("aarch64")
+            }
+            """.trimIndent(),
+        )
+
+        runner("tasks").build()
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain
+            "Embed Code does not publish a binary for operating system `Linux`" +
+            " and architecture `aarch64`."
+    }
+
+    @Test
+    fun `accept trailing slashes in the release base URL`() {
+        val baseUrl = releaseDirectory.toUri().toString().trimEnd('/') + "///"
+        writeBuildFile(downloadBaseUrl = baseUrl)
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+    }
+
+    @Test
+    fun `report an HTTP status returned for a release asset`() {
+        val server = HttpServer.create(
+            InetSocketAddress("127.0.0.1", 0),
+            0,
+        )
+        server.createContext("/") { exchange ->
+            exchange.sendResponseHeaders(503, -1)
+            exchange.close()
+        }
+        server.start()
+        try {
+            val baseUrl = "http://127.0.0.1:${server.address.port}/releases"
+            writeBuildFile(downloadBaseUrl = baseUrl)
+
+            val result = runner(":installEmbedCode").buildAndFail()
+
+            result.output shouldContain "HTTP 503"
+        } finally {
+            server.stop(0)
+        }
     }
 
     @Test
@@ -179,6 +237,57 @@ internal class EmbedCodePluginIgTest {
         configuration shouldContain "\"name\": \"jxbrowser\""
         configuration shouldContain "\"path\": \"$browserPath\""
         configuration shouldContain "\"docs-path\": \"${projectDirectory.toRealPath()}\""
+    }
+
+    @Test
+    fun `reject an empty named source`() {
+        writeNamedSourcesBuildFile(firstSourceName = " ", includeSecondSource = false)
+
+        val result = runner("tasks").buildAndFail()
+
+        result.output shouldContain "An Embed Code source name must not be empty."
+    }
+
+    @Test
+    fun `reject a duplicate named source`() {
+        writeNamedSourcesBuildFile(secondSourceName = "company-site")
+
+        val result = runner("tasks").buildAndFail()
+
+        result.output shouldContain "Embed Code source `company-site` is already configured."
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `run a real Embed Code release with generated configuration`() {
+        assumeTrue(
+            System.getenv("EMBED_CODE_REAL_TEST").toBoolean(),
+            "Set EMBED_CODE_REAL_TEST=true to run this smoke test.",
+        )
+        Files.writeString(
+            projectDirectory.resolve("code/Hello.java"),
+            "class Hello {\n    static final String MESSAGE = \"Hello\";\n}\n",
+        )
+        val documentation = projectDirectory.resolve("docs/example.md")
+        Files.writeString(
+            documentation,
+            """
+            # Example
+
+            <embed-code file="${'$'}sample/Hello.java"></embed-code>
+            ```java
+            class Outdated {}
+            ```
+            """.trimIndent() + "\n",
+        )
+        writeRealReleaseBuildFile()
+
+        val embedResult = runner(":embedCode").build()
+        val checkResult = runner(":checkEmbedding").build()
+
+        embedResult.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        checkResult.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(documentation) shouldContain "static final String MESSAGE = \"Hello\";"
     }
 
     @Test
@@ -285,8 +394,10 @@ internal class EmbedCodePluginIgTest {
     }
 
     /** Writes a consuming build configured entirely through the plugin extension. */
-    private fun writeBuildFile(version: String? = null) {
-        val baseUrl = releaseDirectory.toUri().toString().trimEnd('/')
+    private fun writeBuildFile(
+        version: String? = null,
+        downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
+    ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
@@ -297,7 +408,7 @@ internal class EmbedCodePluginIgTest {
 
             embedCode {
                 $versionConfiguration
-                downloadBaseUrl.set("$baseUrl")
+                downloadBaseUrl.set("$downloadBaseUrl")
                 codePath.set(layout.projectDirectory.dir("code"))
                 docsPath.set(layout.projectDirectory.dir("docs"))
                 docIncludes.set(listOf("**/*.md", "**/*.html"))
@@ -311,10 +422,20 @@ internal class EmbedCodePluginIgTest {
     }
 
     /** Writes a consuming build with two named source roots and no YAML file. */
-    private fun writeNamedSourcesBuildFile(includeDirectSource: Boolean = false) {
+    private fun writeNamedSourcesBuildFile(
+        includeDirectSource: Boolean = false,
+        firstSourceName: String = "company-site",
+        secondSourceName: String = "jxbrowser",
+        includeSecondSource: Boolean = true,
+    ) {
         val baseUrl = releaseDirectory.toUri().toString().trimEnd('/')
         val directSource = if (includeDirectSource) {
             "codePath.set(layout.projectDirectory.dir(\"code\"))"
+        } else {
+            ""
+        }
+        val secondSource = if (includeSecondSource) {
+            "namedSource(\"$secondSourceName\", layout.projectDirectory.dir(\"browser\"))"
         } else {
             ""
         }
@@ -328,9 +449,26 @@ internal class EmbedCodePluginIgTest {
             embedCode {
                 downloadBaseUrl.set("$baseUrl")
                 $directSource
-                namedSource("company-site", layout.projectDirectory.dir("company-site"))
-                namedSource("jxbrowser", layout.projectDirectory.dir("browser"))
+                namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
+                $secondSource
                 docsPath.set(layout.projectDirectory)
+            }
+            """.trimIndent(),
+        )
+    }
+
+    /** Writes a consuming build that exercises a real release and generated JSON config. */
+    private fun writeRealReleaseBuildFile() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+            plugins {
+                id("io.spine.embed-code")
+            }
+
+            embedCode {
+                namedSource("sample", layout.projectDirectory.dir("code"))
+                docsPath.set(layout.projectDirectory.dir("docs"))
             }
             """.trimIndent(),
         )

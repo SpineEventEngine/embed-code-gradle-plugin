@@ -49,10 +49,9 @@ public class EmbedCodePlugin : Plugin<Project> {
         extension.stacktrace.convention(false)
         extension.downloadBaseUrl.convention(DEFAULT_DOWNLOAD_BASE_URL)
 
-        val platform = EmbedCodePlatform.detect(
-            System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-        )
+        val operatingSystem = System.getProperty("os.name").orEmpty()
+        val architecture = System.getProperty("os.arch").orEmpty()
+        val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
         val installTask = project.tasks.register(
             "installEmbedCode",
             InstallEmbedCodeTask::class.java,
@@ -60,16 +59,16 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.description = "Installs the requested Embed Code executable"
             task.version.set(extension.version)
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
-            task.assetName.set(platform.assetName)
-            task.executableName.set(platform.executableName)
+            task.operatingSystem.set(operatingSystem)
+            task.architecture.set(architecture)
             task.executableFile.set(
                 project.layout.buildDirectory.file(
                     extension.version.map { version ->
-                        "embed-code/$version/${platform.executableName}"
-                    }.orElse("embed-code/latest/${platform.executableName}"),
+                        "embed-code/$version/$installedExecutableName"
+                    }.orElse("embed-code/latest/$installedExecutableName"),
                 ),
             )
-            task.outputs.upToDateWhen { extension.version.isPresent }
+            task.outputs.upToDateWhen { task.version.isPresent }
         }
 
         registerExecutionTask(

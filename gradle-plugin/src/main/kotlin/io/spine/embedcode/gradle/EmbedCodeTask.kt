@@ -50,7 +50,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.ArrayList
 import java.util.Locale
 import java.util.TreeMap
 import javax.inject.Inject
@@ -128,7 +127,7 @@ public abstract class EmbedCodeTask : DefaultTask() {
             )
         }
 
-        val arguments = ArrayList<String>()
+        val arguments = mutableListOf<String>()
         arguments.add("-mode=${mode.get()}")
         if (hasNamedSources) {
             arguments.add("-config-path=${writeNamedSourceConfiguration(configuredSources)}")

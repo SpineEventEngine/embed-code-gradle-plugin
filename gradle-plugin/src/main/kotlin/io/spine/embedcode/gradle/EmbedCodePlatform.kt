@@ -37,6 +37,14 @@ internal data class EmbedCodePlatform(
 
     companion object {
 
+        /** Returns the stable installed executable name for [osName]. */
+        fun installedExecutableName(osName: String): String =
+            if (osName.lowercase(Locale.ROOT).contains("windows")) {
+                "embed-code.exe"
+            } else {
+                "embed-code"
+            }
+
         /** Selects the release asset for [osName] and [architecture]. */
         fun detect(osName: String, architecture: String): EmbedCodePlatform {
             val os = osName.lowercase(Locale.ROOT)
