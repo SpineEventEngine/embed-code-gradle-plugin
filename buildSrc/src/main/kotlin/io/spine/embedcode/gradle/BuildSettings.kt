@@ -30,13 +30,13 @@ package io.spine.embedcode.gradle
 object BuildSettings {
 
     /** Java toolchain version used to build and test the project. */
-    const val javaVersion = 21
+    const val javaVersion = 25
 
     /**
      * JVM bytecode version produced for published code.
      *
      * Java 8 bytecode keeps the plugin loadable by the minimum supported Gradle
-     * version, 7.6.3, while builds and tests use Java 21.
+     * version, 7.6.3, while builds and tests use Java 25.
      */
     const val productionBytecodeVersion = 8
 }
