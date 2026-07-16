@@ -42,6 +42,8 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -111,6 +113,82 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.exists(installedExecutable) shouldBe true
+    }
+
+    @Test
+    fun `reuse latest executable when the release version is unchanged`() {
+        val latestVersion = AtomicReference(TEST_RELEASE_VERSION)
+        val versionChecks = AtomicInteger()
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(latestVersion, versionChecks, downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+
+            runner(":installEmbedCode").build()
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            versionChecks.get() shouldBe 2
+            downloads.get() shouldBe 1
+            result.output shouldContain "Reusing Embed Code v$TEST_RELEASE_VERSION"
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `download latest executable when the release version changes`() {
+        val nextVersion = "1.2.5-test"
+        createFakeRelease(releaseDirectory, nextVersion)
+        val latestVersion = AtomicReference(TEST_RELEASE_VERSION)
+        val versionChecks = AtomicInteger()
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(latestVersion, versionChecks, downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+
+            latestVersion.set(nextVersion)
+            runner(":installEmbedCode").build()
+
+            versionChecks.get() shouldBe 2
+            downloads.get() shouldBe 2
+            Files.readString(
+                projectDirectory.resolve("build/embed-code/latest/version.txt"),
+            ).trim() shouldBe "v$nextVersion"
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `reuse latest executable in offline mode`() {
+        val latestVersion = AtomicReference(TEST_RELEASE_VERSION)
+        val server = startReleaseServer(
+            latestVersion,
+            AtomicInteger(),
+            AtomicInteger(),
+        )
+        writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+        try {
+            runner(":installEmbedCode").build()
+        } finally {
+            server.stop(0)
+        }
+
+        val result = runner(":installEmbedCode", "--offline").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "Reusing cached Embed Code executable"
+    }
+
+    @Test
+    fun `report a missing latest executable in offline mode`() {
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
+        result.output shouldContain
+            "Cannot install the latest Embed Code release in offline mode because " +
+            "no cached executable exists"
     }
 
     @Test
@@ -473,6 +551,48 @@ internal class EmbedCodePluginSpec {
             StandardCopyOption.REPLACE_EXISTING,
         )
     }
+
+    /**
+     * Starts a release server whose latest endpoint redirects to a mutable version.
+     */
+    private fun startReleaseServer(
+        latestVersion: AtomicReference<String>,
+        versionChecks: AtomicInteger,
+        downloads: AtomicInteger,
+    ): HttpServer {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/releases/latest") { exchange ->
+            versionChecks.incrementAndGet()
+            if (exchange.requestMethod != "HEAD") {
+                exchange.sendResponseHeaders(405, -1)
+            } else {
+                exchange.responseHeaders.add(
+                    "Location",
+                    "/releases/tag/v${latestVersion.get()}",
+                )
+                exchange.sendResponseHeaders(302, -1)
+            }
+            exchange.close()
+        }
+        server.createContext("/releases/download/") { exchange ->
+            downloads.incrementAndGet()
+            val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
+            val asset = releaseDirectory.resolve("download").resolve(relativePath).normalize()
+            if (!asset.startsWith(releaseDirectory.resolve("download")) || !Files.isRegularFile(asset)) {
+                exchange.sendResponseHeaders(404, -1)
+            } else {
+                val content = Files.readAllBytes(asset)
+                exchange.sendResponseHeaders(200, content.size.toLong())
+                exchange.responseBody.use { output -> output.write(content) }
+            }
+            exchange.close()
+        }
+        server.start()
+        return server
+    }
+
+    private val HttpServer.releaseBaseUrl: String
+        get() = "http://127.0.0.1:${address.port}/releases"
 
     private companion object {
         const val TEST_RELEASE_VERSION = "1.2.4-test"

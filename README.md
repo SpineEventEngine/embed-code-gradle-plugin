@@ -85,6 +85,11 @@ embedCode {
 Embedding instructions refer to these roots with `$model/` and
 `$database/`. `codePath` and `namedSource(...)` are mutually exclusive.
 
+By default, the plugin checks the latest Embed Code release before running a task. 
+It reuses the executable in `build/embed-code/latest` while the release
+version remains unchanged and downloads a new executable only after a new
+release is published.
+
 To use a specific Embed Code application release, add its version to the extension:
 
 ```kotlin

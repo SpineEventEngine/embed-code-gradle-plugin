@@ -66,12 +66,16 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
             task.operatingSystem.set(operatingSystem)
             task.architecture.set(architecture)
+            task.offline.set(project.gradle.startParameter.isOffline)
             task.executableFile.set(
                 project.layout.buildDirectory.file(
                     requestedVersion.map { version ->
                         "embed-code/$version/$installedExecutableName"
                     }.orElse("embed-code/latest/$installedExecutableName"),
                 ),
+            )
+            task.resolvedVersionFile.set(
+                project.layout.buildDirectory.file("embed-code/latest/version.txt"),
             )
             task.outputs.upToDateWhen { task.version.isPresent }
         }

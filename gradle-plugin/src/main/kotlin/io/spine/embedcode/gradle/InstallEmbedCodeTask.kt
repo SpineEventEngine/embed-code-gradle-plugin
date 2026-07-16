@@ -31,6 +31,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.LocalState
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -51,8 +52,8 @@ import java.util.zip.ZipInputStream
  * Downloads and prepares the Embed Code executable selected for the host.
  *
  * An explicitly selected version is reused using Gradle's normal up-to-date
- * behavior. The latest release is downloaded on every invocation so that it
- * cannot remain stale behind an existing output.
+ * behavior. For the latest release, the remote version is checked before an
+ * existing executable is replaced.
  */
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
@@ -74,9 +75,17 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:Input
     public abstract val architecture: Property<String>
 
+    /** Whether Gradle is running without network access. */
+    @get:Input
+    public abstract val offline: Property<Boolean>
+
     /** The installed executable used by Embed Code execution tasks. */
     @get:OutputFile
     public abstract val executableFile: RegularFileProperty
+
+    /** Stores the release version represented by the latest executable. */
+    @get:LocalState
+    public abstract val resolvedVersionFile: RegularFileProperty
 
     /**
      * Downloads, extracts when necessary, and marks the executable runnable.
@@ -93,8 +102,27 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         )
         val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())
-        val source = releaseAsset(baseUrl, requestedVersion, asset)
         val destination = executableFile.get().asFile.toPath()
+        val versionFile = resolvedVersionFile.get().asFile.toPath()
+        if (requestedVersion == null && offline.get()) {
+            reuseOfflineInstallation(destination)
+            return
+        }
+        val resolvedVersion = if (requestedVersion == null) {
+            resolveLatestVersion(baseUrl)
+        } else {
+            null
+        }
+        if (
+            resolvedVersion != null &&
+            Files.isRegularFile(destination) &&
+            readResolvedVersion(versionFile) == resolvedVersion
+        ) {
+            logger.lifecycle("Reusing Embed Code {} from {}", resolvedVersion, destination)
+            return
+        }
+        val releaseVersion = requestedVersion ?: resolvedVersion
+        val source = releaseAsset(baseUrl, releaseVersion, asset)
         val download = temporaryDir.toPath().resolve(asset)
         val preparedExecutable = temporaryDir.toPath().resolve(platform.executableName)
 
@@ -114,9 +142,25 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 throw GradleException("Could not make `$preparedExecutable` executable.")
             }
             moveAtomically(preparedExecutable, destination)
+            if (resolvedVersion != null) {
+                writeResolvedVersion(versionFile, resolvedVersion)
+            }
         } catch (exception: IOException) {
             throw GradleException("Could not install Embed Code from $source.", exception)
         }
+    }
+
+    /**
+     * Reuses an installed executable while Gradle is offline.
+     */
+    private fun reuseOfflineInstallation(destination: Path) {
+        if (!Files.isRegularFile(destination)) {
+            throw GradleException(
+                "Cannot install the latest Embed Code release in offline mode because " +
+                    "no cached executable exists at `$destination`.",
+            )
+        }
+        logger.lifecycle("Reusing cached Embed Code executable from {} in offline mode", destination)
     }
 
     private companion object {
@@ -124,6 +168,53 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         const val CONNECT_TIMEOUT_MILLIS = 30_000
         const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
+
+        /**
+         * Returns the tag of the release targeted by the latest-release redirect.
+         *
+         * Non-HTTP release mirrors cannot expose an HTTP redirect, so they keep
+         * using the latest asset URL directly.
+         */
+        fun resolveLatestVersion(baseUrl: String): String? {
+            val source = URI.create("$baseUrl/latest")
+            val connection = source.toURL().openConnection()
+            if (connection !is HttpURLConnection) {
+                return null
+            }
+            try {
+                connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
+                connection.readTimeout = READ_TIMEOUT_MILLIS
+                connection.instanceFollowRedirects = false
+                connection.requestMethod = "HEAD"
+                val status = connection.responseCode
+                if (status < 300 || status > 399) {
+                    throw GradleException(
+                        "Could not resolve the latest Embed Code release: " +
+                            "HTTP $status from $source.",
+                    )
+                }
+                val location = connection.getHeaderField("Location")
+                    ?: throw GradleException(
+                        "Could not resolve the latest Embed Code release: " +
+                            "the redirect from $source has no Location header.",
+                    )
+                val releaseUri = source.resolve(location)
+                val tag = releaseUri.path.substringAfterLast('/')
+                if (tag.isEmpty()) {
+                    throw GradleException(
+                        "Could not resolve the latest Embed Code release from `$releaseUri`.",
+                    )
+                }
+                return tag
+            } catch (exception: IOException) {
+                throw GradleException(
+                    "Could not resolve the latest Embed Code release from $source.",
+                    exception,
+                )
+            } finally {
+                connection.disconnect()
+            }
+        }
 
         /**
          * Returns the release asset URI for the latest or explicitly requested version.
@@ -172,6 +263,28 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                     connection.disconnect()
                 }
             }
+        }
+
+        /**
+         * Returns the recorded latest release version, if available.
+         */
+        fun readResolvedVersion(versionFile: Path): String? {
+            return try {
+                Files.readString(versionFile).trim().ifEmpty { null }
+            } catch (_: IOException) {
+                null
+            }
+        }
+
+        /**
+         * Records [version] after its executable has been installed.
+         */
+        @Throws(IOException::class)
+        fun writeResolvedVersion(versionFile: Path, version: String) {
+            Files.createDirectories(versionFile.parent)
+            val temporaryFile = versionFile.resolveSibling("${versionFile.fileName}.tmp")
+            Files.writeString(temporaryFile, "$version\n")
+            moveAtomically(temporaryFile, versionFile)
         }
 
         /**
