@@ -42,6 +42,7 @@ public class EmbedCodePlugin : Plugin<Project> {
         project.logger.info("Applying the Embed Code plugin to project `{}`.", project.path)
         val checkTaskName = availableTaskName(project, "checkEmbedding")
         val embedTaskName = availableTaskName(project, "embedCode")
+        val installTaskName = availableTaskName(project, "installEmbedCode")
         val extension = project.extensions.create(
             "embedCode",
             EmbedCodeExtension::class.java,
@@ -61,7 +62,7 @@ public class EmbedCodePlugin : Plugin<Project> {
         val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
         val requestedVersion = extension.version.map { version -> version.trim() }
         val installTask = project.tasks.register(
-            "installEmbedCode",
+            installTaskName,
             InstallEmbedCodeTask::class.java,
         ) { task ->
             task.description = "Installs the requested Embed Code executable"

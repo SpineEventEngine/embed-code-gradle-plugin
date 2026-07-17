@@ -143,8 +143,12 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             logger.lifecycle("Reusing Embed Code {} from {}", resolvedVersion, destination)
             return
         }
-        val releaseVersion = requestedVersion ?: resolvedVersion
-        val source = releaseAsset(baseUrl, releaseVersion, asset)
+        val selectedReleaseTag = if (requestedVersion != null) {
+            releaseTagForVersion(requestedVersion)
+        } else {
+            resolvedVersion
+        }
+        val source = releaseAsset(baseUrl, selectedReleaseTag, asset)
         val download = temporaryDir.toPath().resolve(asset)
         val preparedExecutable = temporaryDir.toPath().resolve(platform.executableName)
 
@@ -169,7 +173,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
             logger.info(
                 "Installed Embed Code {} at {}.",
-                releaseVersion ?: "latest release",
+                selectedReleaseTag ?: "latest release",
                 destination,
             )
         } catch (exception: IOException) {
@@ -244,18 +248,20 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         }
 
         /**
-         * Returns the release asset URI for the latest or explicitly requested version.
+         * Returns the release asset URI for the latest release or [releaseTag].
          */
-        fun releaseAsset(baseUrl: String, requestedVersion: String?, asset: String): URI {
-            if (requestedVersion == null) {
+        fun releaseAsset(baseUrl: String, releaseTag: String?, asset: String): URI {
+            if (releaseTag == null) {
                 return URI.create("$baseUrl/latest/download/$asset")
             }
-            val releaseTag = if (requestedVersion.startsWith("v")) {
-                requestedVersion
-            } else {
-                "v$requestedVersion"
-            }
             return URI.create("$baseUrl/download/$releaseTag/$asset")
+        }
+
+        /**
+         * Returns the release tag corresponding to a user-configured [version].
+         */
+        fun releaseTagForVersion(version: String): String {
+            return if (version.startsWith("v")) version else "v$version"
         }
 
         /**

@@ -85,7 +85,7 @@ embedCode {
 Embedding instructions refer to these roots with `$model/` and
 `$database/`. `codePath` and `namedSource(...)` are mutually exclusive.
 
-By default, the plugin checks the latest Embed Code release before running a task. 
+By default, the plugin checks the latest Embed Code release before running a task.
 It reuses the executable in `build/embed-code/latest` while the release
 version remains unchanged and downloads a new executable only after a new
 release is published. When the release check fails, for example without
