@@ -36,8 +36,20 @@ plugins {
  */
 val kotlinVersion = "2.4.10"
 
+/**
+ * Version of the Gradle Plugin Publish plugin.
+ *
+ * `buildSrc` needs this version before its dependency objects are compiled.
+ * Keep in sync with `io.spine.embedcode.gradle.dependency.PluginPublish.version`.
+ */
+val pluginPublishVersion = "2.1.1"
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    implementation(
+        "com.gradle.plugin-publish:com.gradle.plugin-publish.gradle.plugin:" +
+            pluginPublishVersion,
+    )
 }
 
 kotlin {

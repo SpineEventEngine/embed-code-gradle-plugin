@@ -24,18 +24,42 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package io.spine.embedcode.gradle.dependency
+package io.spine.embedcode.gradle
 
-/**
- * Kotlin dependencies used by the project.
- */
-object Kotlin {
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 
-    const val version = "2.4.10"
-    private const val group = "org.jetbrains.kotlin"
+@DisplayName("`createConfigurationJson` should")
+internal class EmbedCodeJsonSpec {
 
-    // https://github.com/JetBrains/kotlin/tree/master/libraries/tools/kotlin-gradle-plugin
-    object GradlePlugin {
-        const val lib = "$group:kotlin-gradle-plugin:$version"
+    @Test
+    fun `escape names paths and options`() {
+        val json = createConfigurationJson(
+            linkedMapOf("quoted\"\nsource" to "C:\\work\\\"quoted\nfile"),
+            "C:\\docs\nline",
+            listOf("**/\"quoted\".md", "line\nbreak"),
+            listOf("drafts\\**"),
+            "---\n---",
+            info = true,
+            stacktrace = false,
+        )
+
+        assertEquals(
+            """
+            {
+              "code-path": [
+                {"name": "quoted\"\nsource", "path": "C:\\work\\\"quoted\nfile"}
+              ],
+              "docs-path": "C:\\docs\nline",
+              "doc-includes": ["**/\"quoted\".md", "line\nbreak"],
+              "doc-excludes": ["drafts\\**"],
+              "separator": "---\n---",
+              "info": true,
+              "stacktrace": false
+            }
+            """.trimIndent() + "\n",
+            json,
+        )
     }
 }

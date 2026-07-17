@@ -26,17 +26,18 @@
 
 package io.spine.embedcode.gradle
 
-/** Build-wide Java and bytecode targets. */
+/**
+ * Build-wide Java and bytecode targets.
+ */
 object BuildSettings {
 
     /** Java toolchain version used to build and test the project. */
     const val javaVersion = 25
 
     /**
-     * JVM bytecode version produced for published code.
+     * JVM bytecode version produced by the project.
      *
-     * Java 8 bytecode keeps the plugin loadable by the minimum supported Gradle
-     * version, 7.6.3, while builds and tests use Java 25.
+     * Java 17 is supported by Gradle 8.14.4 and required by Gradle 9.
      */
-    const val productionBytecodeVersion = 8
+    const val bytecodeVersion = 17
 }

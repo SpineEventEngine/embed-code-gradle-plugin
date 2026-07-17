@@ -27,16 +27,14 @@
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.JUnit
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     `java-library`
     kotlin("jvm")
 }
 
-fun jvmTarget(version: Int): JvmTarget = JvmTarget.fromTarget(
-    if (version == 8) "1.$version" else version.toString(),
-)
+fun jvmTarget(version: Int): JvmTarget = JvmTarget.fromTarget(version.toString())
 
 java {
     toolchain {
@@ -45,18 +43,19 @@ java {
 }
 
 kotlin {
+    explicitApi()
     compilerOptions {
-        jvmTarget.set(jvmTarget(BuildSettings.productionBytecodeVersion))
+        jvmTarget.set(jvmTarget(BuildSettings.bytecodeVersion))
+        // Gradle 8.14.4 embeds Kotlin 2.0.21. Keep plugin metadata and
+        // standard-library API usage compatible with that runtime.
+        languageVersion.set(KotlinVersion.KOTLIN_2_0)
+        apiVersion.set(KotlinVersion.KOTLIN_2_0)
         freeCompilerArgs.add("-Xjsr305=strict")
     }
 }
 
-tasks.named<JavaCompile>("compileJava") {
-    options.release.set(BuildSettings.productionBytecodeVersion)
-}
-
-tasks.named<KotlinJvmCompile>("compileTestKotlin") {
-    compilerOptions.jvmTarget.set(jvmTarget(BuildSettings.javaVersion))
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(BuildSettings.bytecodeVersion)
 }
 
 dependencies {
@@ -66,4 +65,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(BuildSettings.bytecodeVersion))
+        },
+    )
 }
