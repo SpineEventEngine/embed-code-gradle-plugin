@@ -366,6 +366,59 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
+    fun `reject a version containing path traversal segments`() {
+        writeBuildFile(
+            version = "../../escaped",
+            sha256 = "0".repeat(64),
+        )
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "Embed Code version `../../escaped` is invalid."
+        Files.exists(projectDirectory.resolve("escaped")) shouldBe false
+    }
+
+    @Test
+    fun `reject an executable path outside the installation directory`() {
+        writeBuildFile(version = TEST_RELEASE_VERSION)
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                executableFile.set(layout.projectDirectory.file("escaped/embed-code"))
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "must remain inside"
+        Files.exists(projectDirectory.resolve("escaped/embed-code")) shouldBe false
+    }
+
+    @Test
+    fun `reject a checksum path outside the installation directory`() {
+        writeBuildFile(version = TEST_RELEASE_VERSION)
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                assetChecksumFile.set(layout.projectDirectory.file("escaped/asset.sha256"))
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "must remain inside"
+        Files.exists(projectDirectory.resolve("escaped/asset.sha256")) shouldBe false
+    }
+
+    @Test
     fun `defer unsupported platform failure until installation`() {
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),

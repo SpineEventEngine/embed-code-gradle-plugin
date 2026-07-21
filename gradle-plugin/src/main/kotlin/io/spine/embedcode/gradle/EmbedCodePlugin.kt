@@ -60,7 +60,8 @@ public class EmbedCodePlugin : Plugin<Project> {
         // The installed file name always tracks the host operating system.
         // Overriding the task's `operatingSystem` input changes asset selection only.
         val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
-        val requestedVersion = extension.version.map { version -> version.trim() }
+        val requestedVersion = extension.version.map(::validateVersion)
+        val installationDirectory = project.layout.buildDirectory.dir("embed-code")
         val installTask = project.tasks.register(
             installTaskName,
             InstallEmbedCodeTask::class.java,
@@ -73,6 +74,8 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.operatingSystem.set(operatingSystem)
             task.architecture.set(architecture)
             task.offline.set(project.gradle.startParameter.isOffline)
+            task.installationDirectory.set(installationDirectory)
+            task.installationDirectory.disallowChanges()
             task.executableFile.set(
                 project.layout.buildDirectory.file(
                     requestedVersion.map { version ->
