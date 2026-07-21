@@ -28,6 +28,7 @@ package io.spine.embedcode.gradle
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -91,6 +92,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:Input
     public abstract val offline: Property<Boolean>
 
+    /** The directory containing executables and their integrity metadata. */
+    @get:Internal
+    public abstract val installationDirectory: DirectoryProperty
+
     /** The installed executable used by Embed Code execution tasks. */
     @get:OutputFile
     public abstract val executableFile: RegularFileProperty
@@ -116,10 +121,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
      */
     @TaskAction
     public fun install() {
-        val requestedVersion = version.orNull
-        if (requestedVersion != null && requestedVersion.isEmpty()) {
-            throw GradleException("Embed Code version must not be empty.")
-        }
+        val requestedVersion = version.orNull?.let(::validateVersion)
         val configuredSha256 = sha256.orNull?.let(::normalizeSha256)
         val hostOperatingSystem = operatingSystem.get()
         val hostArchitecture = architecture.get()
@@ -131,11 +133,27 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         val platform = EmbedCodePlatform.detect(hostOperatingSystem, hostArchitecture)
         val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())
-        val destination = executableFile.get().asFile.toPath()
-        val versionFile = resolvedVersionFile.get().asFile.toPath()
-        val assetChecksum = assetChecksumFile.get().asFile.toPath()
-        val executableChecksum = executableChecksumFile.get().asFile.toPath()
-        val sourceIdentity = sourceIdentityFile.get().asFile.toPath()
+        val installationRoot = installationDirectory.get().asFile.toPath()
+        val destination = requireInsideInstallationDirectory(
+            executableFile.get().asFile.toPath(),
+            installationRoot,
+        )
+        val versionFile = requireInsideInstallationDirectory(
+            resolvedVersionFile.get().asFile.toPath(),
+            installationRoot,
+        )
+        val assetChecksum = requireInsideInstallationDirectory(
+            assetChecksumFile.get().asFile.toPath(),
+            installationRoot,
+        )
+        val executableChecksum = requireInsideInstallationDirectory(
+            executableChecksumFile.get().asFile.toPath(),
+            installationRoot,
+        )
+        val sourceIdentity = requireInsideInstallationDirectory(
+            sourceIdentityFile.get().asFile.toPath(),
+            installationRoot,
+        )
         val expectedSourceIdentity = releaseAssetIdentity(baseUrl, asset)
         if (offline.get()) {
             reuseOfflineInstallation(
@@ -309,6 +327,23 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         const val CONNECT_TIMEOUT_MILLIS = 30_000
         const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
+
+        /**
+         * Normalizes [path] and verifies that it is below [installationDirectory].
+         */
+        fun requireInsideInstallationDirectory(
+            path: Path,
+            installationDirectory: Path,
+        ): Path {
+            val root = installationDirectory.toAbsolutePath().normalize()
+            val normalizedPath = path.toAbsolutePath().normalize()
+            if (normalizedPath == root || !normalizedPath.startsWith(root)) {
+                throw GradleException(
+                    "Embed Code installation path `$normalizedPath` must remain inside `$root`.",
+                )
+            }
+            return normalizedPath
+        }
 
         fun selectedVersionName(requestedVersion: String?, resolvedVersion: String?): String =
             requestedVersion ?: resolvedVersion ?: "latest release"
