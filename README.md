@@ -7,8 +7,8 @@ Gradle plugin for [Embed Code][embed-code], an application that keeps code
 examples in Markdown and HTML synchronized with their source files.
 
 The plugin downloads the released Embed Code executable for the current
-platform, so developers and CI jobs do not have to install it manually. It
-adds two tasks:
+platform, so developers and CI jobs do not have to install it manually.
+It adds two tasks:
 
 - `checkEmbedding` checks that embedded code is up to date.
 - `embedCode` updates embedded code in place.
@@ -98,6 +98,28 @@ embedCode {
     version.set("1.2.4")
 }
 ```
+
+Before installing an executable, the plugin verifies the release asset's SHA-256
+digest. For releases hosted in the default GitHub repository, the digest is read
+automatically from the GitHub Releases API. A custom release mirror can publish a
+companion checksum file next to each asset, for example
+`embed-code-linux.sha256`.
+
+If a custom mirror provides neither GitHub-compatible release metadata nor a
+companion checksum file, configure the release asset digest explicitly:
+
+```kotlin
+embedCode {
+    version.set("1.2.4")
+    downloadBaseUrl.set("https://releases.example.com/embed-code")
+    sha256.set("5ee7f23ece8dfd4de293e0fcbd45a8b08a709aaa9a952f4e2d47ed21f1122a6b")
+}
+```
+
+The digest applies to the downloaded release asset. For macOS, this means the
+ZIP archive rather than the extracted executable. Verified cache metadata is
+stored under `build/embed-code`; offline mode reuses the executable only when
+its current digest still matches that metadata.
 
 Check that documentation is up to date:
 

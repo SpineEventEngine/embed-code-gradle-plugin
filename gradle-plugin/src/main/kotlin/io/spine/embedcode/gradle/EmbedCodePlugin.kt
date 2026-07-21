@@ -67,6 +67,7 @@ public class EmbedCodePlugin : Plugin<Project> {
         ) { task ->
             task.description = "Installs the requested Embed Code executable"
             task.version.set(requestedVersion)
+            task.sha256.set(extension.sha256)
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
             task.operatingSystem.set(operatingSystem)
             task.architecture.set(architecture)
@@ -81,7 +82,22 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.resolvedVersionFile.set(
                 project.layout.buildDirectory.file("embed-code/latest/version.txt"),
             )
-            task.outputs.upToDateWhen { task.version.isPresent }
+            task.assetChecksumFile.set(
+                project.layout.buildDirectory.file(
+                    requestedVersion.map { version ->
+                        "embed-code/$version/asset.sha256"
+                    }.orElse("embed-code/latest/asset.sha256"),
+                ),
+            )
+            task.executableChecksumFile.set(
+                project.layout.buildDirectory.file(
+                    requestedVersion.map { version ->
+                        "embed-code/$version/executable.sha256"
+                    }.orElse("embed-code/latest/executable.sha256"),
+                ),
+            )
+            // Always verify cached executable contents before allowing execution.
+            task.outputs.upToDateWhen { false }
         }
 
         registerExecutionTask(

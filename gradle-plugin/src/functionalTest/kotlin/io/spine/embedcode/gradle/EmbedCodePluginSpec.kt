@@ -145,7 +145,7 @@ internal class EmbedCodePluginSpec {
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
             versionChecks.get() shouldBe 2
             downloads.get() shouldBe 1
-            result.output shouldContain "Reusing Embed Code v$TEST_RELEASE_VERSION"
+            result.output shouldContain "Reusing verified Embed Code v$TEST_RELEASE_VERSION"
         } finally {
             server.stop(0)
         }
@@ -218,7 +218,7 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing cached Embed Code executable"
+        result.output shouldContain "Reusing verified cached Embed Code executable"
     }
 
     @Test
@@ -260,8 +260,70 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
         result.output shouldContain
-            "Cannot install the latest Embed Code release in offline mode because " +
+            "Cannot install Embed Code in offline mode because " +
             "no cached executable exists"
+    }
+
+    @Test
+    fun `keep explicit versions offline when no verified executable is cached`() {
+        writeBuildFile(version = TEST_RELEASE_VERSION)
+
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
+        result.output shouldContain "Cannot install Embed Code in offline mode"
+        result.output shouldNotContain "Downloading Embed Code"
+    }
+
+    @Test
+    fun `reject a release asset whose SHA-256 digest does not match`() {
+        val platform = EmbedCodePlatform.detect(
+            System.getProperty("os.name"),
+            System.getProperty("os.arch"),
+        )
+        Files.writeString(
+            releaseDirectory.resolve("latest/download/${platform.assetName}.sha256"),
+            "${"0".repeat(64)}  ${platform.assetName}\n",
+        )
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "SHA-256 verification failed for Embed Code asset"
+    }
+
+    @Test
+    fun `reject a modified cached executable in offline mode`() {
+        runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+        Files.writeString(
+            projectDirectory.resolve("build/embed-code/latest/$executableName"),
+            "modified after verification",
+        )
+
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
+        result.output shouldContain "SHA-256 integrity metadata is missing or does not match"
+    }
+
+    @Test
+    fun `accept a user-provided checksum for a custom mirror`() {
+        val platform = EmbedCodePlatform.detect(
+            System.getProperty("os.name"),
+            System.getProperty("os.arch"),
+        )
+        val asset = releaseDirectory.resolve(
+            "download/$TEST_RELEASE_TAG/${platform.assetName}",
+        )
+        Files.delete(asset.resolveSibling("${asset.fileName}.sha256"))
+        writeBuildFile(
+            version = TEST_RELEASE_VERSION,
+            sha256 = sha256(asset),
+        )
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
     @Test
@@ -360,7 +422,8 @@ internal class EmbedCodePluginSpec {
 
         val result = runner(":embedCode").build()
 
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.UP_TO_DATE
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "Reusing verified Embed Code $TEST_RELEASE_VERSION"
         result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "embed"
     }
@@ -538,8 +601,10 @@ internal class EmbedCodePluginSpec {
     private fun writeBuildFile(
         version: String? = null,
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
+        sha256: String? = null,
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
+        val checksumConfiguration = sha256?.let { "sha256.set(\"$it\")" }.orEmpty()
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -549,6 +614,7 @@ internal class EmbedCodePluginSpec {
 
             embedCode {
                 $versionConfiguration
+                $checksumConfiguration
                 downloadBaseUrl.set("$downloadBaseUrl")
                 codePath.set(layout.projectDirectory.dir("code"))
                 docsPath.set(layout.projectDirectory.dir("docs"))
@@ -643,10 +709,23 @@ internal class EmbedCodePluginSpec {
         } else {
             Files.copy(executable, asset)
         }
+        writeChecksumFile(asset)
+        val latestAsset = latestDirectory.resolve(platform.assetName)
         Files.copy(
             asset,
-            latestDirectory.resolve(platform.assetName),
+            latestAsset,
             StandardCopyOption.REPLACE_EXISTING,
+        )
+        writeChecksumFile(latestAsset)
+    }
+
+    /**
+     * Writes a companion SHA-256 file for [asset].
+     */
+    private fun writeChecksumFile(asset: Path) {
+        Files.writeString(
+            asset.resolveSibling("${asset.fileName}.sha256"),
+            "${sha256(asset)}  ${asset.fileName}\n",
         )
     }
 
@@ -673,8 +752,10 @@ internal class EmbedCodePluginSpec {
             exchange.close()
         }
         server.createContext("/releases/download/") { exchange ->
-            downloads.incrementAndGet()
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
+            if (!relativePath.endsWith(".sha256")) {
+                downloads.incrementAndGet()
+            }
             val asset = releaseDirectory.resolve("download").resolve(relativePath).normalize()
             if (!asset.startsWith(releaseDirectory.resolve("download")) || !Files.isRegularFile(asset)) {
                 exchange.sendResponseHeaders(404, -1)

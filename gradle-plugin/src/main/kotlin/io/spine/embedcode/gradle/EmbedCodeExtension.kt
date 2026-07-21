@@ -48,6 +48,15 @@ public abstract class EmbedCodeExtension {
     /** An optional release version, with the latest release used when absent. */
     public abstract val version: Property<String>
 
+    /**
+     * An optional SHA-256 digest of the configured release asset.
+     *
+     * The plugin resolves this digest automatically for GitHub releases and
+     * mirrors that publish a companion `.sha256` file. Configure this property
+     * only when a custom release mirror does not expose either mechanism.
+     */
+    public abstract val sha256: Property<String>
+
     /** The root directory containing source files used by embedding instructions. */
     public abstract val codePath: DirectoryProperty
 
