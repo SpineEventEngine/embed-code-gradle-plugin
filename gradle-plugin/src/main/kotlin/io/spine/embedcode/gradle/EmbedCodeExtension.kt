@@ -52,7 +52,8 @@ public abstract class EmbedCodeExtension {
      * An optional SHA-256 digest of the configured release asset.
      *
      * The plugin resolves this digest automatically for releases hosted on
-     * `github.com`. Configure this property to pin a digest explicitly.
+     * `github.com`. Configure this property together with [version] to pin a
+     * release asset explicitly.
      */
     public abstract val sha256: Property<String>
 

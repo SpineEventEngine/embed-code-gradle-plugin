@@ -469,7 +469,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                     connection.setRequestProperty("Authorization", "Bearer $githubToken")
                 }
                 if (connection is HttpURLConnection) {
-                    connection.instanceFollowRedirects = true
+                    connection.instanceFollowRedirects = false
                     val status = connection.responseCode
                     if (status < 200 || status > 299) {
                         throw GradleException(

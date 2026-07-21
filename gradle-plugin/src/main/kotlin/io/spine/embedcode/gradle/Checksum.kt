@@ -80,7 +80,7 @@ internal fun normalizeSha256(value: String): String {
         trimmed
     }
     val isInvalid = digest.length != SHA256_LENGTH ||
-        digest.any { !it.isDigit() && it.lowercaseChar() !in 'a'..'f' }
+        digest.any { it !in '0'..'9' && it.lowercaseChar() !in 'a'..'f' }
     if (isInvalid) {
         throw GradleException("Invalid SHA-256 digest `$value`.")
     }
@@ -92,7 +92,10 @@ internal fun normalizeSha256(value: String): String {
  */
 internal fun githubReleaseApi(releaseBaseUrl: String, releaseTag: String): URI? {
     val base = URI.create(releaseBaseUrl)
-    if (base.scheme != "https" || !base.host.equals("github.com", ignoreCase = true)) {
+    if (
+        base.scheme != "https" ||
+        base.host?.equals("github.com", ignoreCase = true) != true
+    ) {
         return null
     }
     val segments = base.path.trim('/').split('/')
@@ -119,7 +122,8 @@ internal fun parseGitHubAssetSha256(json: String, assetName: String): String {
         ?: throw GradleException("The GitHub release does not contain asset `$assetName`.")
     val digest = asset["digest"] as? String
         ?: throw GradleException(
-            "GitHub does not provide a SHA-256 digest for release asset `$assetName`.",
+            "GitHub does not provide a SHA-256 digest for release asset `$assetName`. " +
+                "Configure `embedCode.sha256` explicitly.",
         )
     return normalizeSha256(digest)
 }
@@ -150,7 +154,8 @@ internal fun resolveExpectedAssetSha256(
     } catch (exception: GradleException) {
         throw GradleException(
             "Could not resolve a SHA-256 digest for Embed Code asset `$assetName` " +
-                "from `$githubApi`.",
+                "from `$githubApi`. Configure `embedCode.sha256` explicitly, or " +
+                "`embedCode.githubToken` if the GitHub API rate limit was exceeded.",
             exception,
         )
     }

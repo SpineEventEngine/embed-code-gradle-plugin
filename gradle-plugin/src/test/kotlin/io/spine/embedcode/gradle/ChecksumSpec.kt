@@ -46,6 +46,17 @@ internal class ChecksumSpec {
     }
 
     @Test
+    fun `reject non-ASCII digits in a digest`() {
+        val digest = "٣" + "0".repeat(63)
+
+        val error = assertThrows(GradleException::class.java) {
+            normalizeSha256(digest)
+        }
+
+        assertEquals("Invalid SHA-256 digest `$digest`.", error.message)
+    }
+
+    @Test
     fun `distinguish release assets in cache metadata`() {
         val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
 
@@ -74,6 +85,7 @@ internal class ChecksumSpec {
     @Test
     fun `ignore a non-GitHub release URL`() {
         assertNull(githubReleaseApi("https://releases.example.com/embed-code", "v1.2.4"))
+        assertNull(githubReleaseApi("https:///releases", "v1.2.4"))
     }
 
     @Test
@@ -157,6 +169,13 @@ internal class ChecksumSpec {
             }
         }
 
+        assertEquals(
+            "Could not resolve a SHA-256 digest for Embed Code asset `embed-code-linux` " +
+                "from `https://api.github.com/repos/SpineEventEngine/embed-code-go/" +
+                "releases/tags/v1.2.4`. Configure `embedCode.sha256` explicitly, or " +
+                "`embedCode.githubToken` if the GitHub API rate limit was exceeded.",
+            error.message,
+        )
         assertEquals("GitHub metadata is unavailable.", error.cause?.message)
     }
 
@@ -170,7 +189,8 @@ internal class ChecksumSpec {
         }
 
         assertEquals(
-            "GitHub does not provide a SHA-256 digest for release asset `embed-code-linux`.",
+            "GitHub does not provide a SHA-256 digest for release asset `embed-code-linux`. " +
+                "Configure `embedCode.sha256` explicitly.",
             error.message,
         )
     }
