@@ -57,6 +57,15 @@ public abstract class EmbedCodeExtension {
      */
     public abstract val sha256: Property<String>
 
+    /**
+     * An optional GitHub token used to read release checksum metadata.
+     *
+     * Configure this property explicitly when authenticated GitHub API access
+     * is intended. The plugin does not read a token from the environment by
+     * default.
+     */
+    public abstract val githubToken: Property<String>
+
     /** The root directory containing source files used by embedding instructions. */
     public abstract val codePath: DirectoryProperty
 

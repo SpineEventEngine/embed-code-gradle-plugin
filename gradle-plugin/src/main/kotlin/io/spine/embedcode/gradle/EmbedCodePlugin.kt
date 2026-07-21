@@ -68,6 +68,7 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.description = "Installs the requested Embed Code executable"
             task.version.set(requestedVersion)
             task.sha256.set(extension.sha256)
+            task.githubToken.set(extension.githubToken)
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
             task.operatingSystem.set(operatingSystem)
             task.architecture.set(architecture)
@@ -94,6 +95,13 @@ public class EmbedCodePlugin : Plugin<Project> {
                     requestedVersion.map { version ->
                         "embed-code/$version/executable.sha256"
                     }.orElse("embed-code/latest/executable.sha256"),
+                ),
+            )
+            task.sourceIdentityFile.set(
+                project.layout.buildDirectory.file(
+                    requestedVersion.map { version ->
+                        "embed-code/$version/source.sha256"
+                    }.orElse("embed-code/latest/source.sha256"),
                 ),
             )
             // Always verify cached executable contents before allowing execution.

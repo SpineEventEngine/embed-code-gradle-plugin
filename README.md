@@ -100,13 +100,19 @@ embedCode {
 ```
 
 Before installing an executable, the plugin verifies the release asset's SHA-256
-digest. For releases hosted in the default GitHub repository, the digest is read
-automatically from the GitHub Releases API. A custom release mirror can publish a
-companion checksum file next to each asset, for example
-`embed-code-linux.sha256`.
+digest. It first looks for a companion checksum file next to the asset, for
+example `embed-code-linux.sha256`. For GitHub releases without that file, the
+digest is read from the GitHub Releases API. API requests are unauthenticated
+unless a token provider is configured explicitly:
 
-If a custom mirror provides neither GitHub-compatible release metadata nor a
-companion checksum file, configure the release asset digest explicitly:
+```kotlin
+embedCode {
+    githubToken.set(providers.environmentVariable("EMBED_CODE_GITHUB_TOKEN"))
+}
+```
+
+If a custom mirror provides no companion checksum file, configure the release
+asset digest explicitly:
 
 ```kotlin
 embedCode {
@@ -119,7 +125,7 @@ embedCode {
 The digest applies to the downloaded release asset. For macOS, this means the
 ZIP archive rather than the extracted executable. Verified cache metadata is
 stored under `build/embed-code`; offline mode reuses the executable only when
-its current digest still matches that metadata.
+its current digest, release source, and platform asset still match that metadata.
 
 Check that documentation is up to date:
 

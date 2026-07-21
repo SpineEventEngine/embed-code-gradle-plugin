@@ -31,6 +31,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.LocalState
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
@@ -70,6 +71,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:Optional
     public abstract val sha256: Property<String>
 
+    /** An optional token used for GitHub release metadata requests. */
+    @get:Internal
+    public abstract val githubToken: Property<String>
+
     /** The base URL of the Embed Code releases. */
     @get:Input
     public abstract val downloadBaseUrl: Property<String>
@@ -102,6 +107,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:LocalState
     public abstract val executableChecksumFile: RegularFileProperty
 
+    /** Stores the selected release source and asset identity. */
+    @get:LocalState
+    public abstract val sourceIdentityFile: RegularFileProperty
+
     /**
      * Downloads, extracts when necessary, and marks the executable runnable.
      */
@@ -126,11 +135,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         val versionFile = resolvedVersionFile.get().asFile.toPath()
         val assetChecksum = assetChecksumFile.get().asFile.toPath()
         val executableChecksum = executableChecksumFile.get().asFile.toPath()
+        val sourceIdentity = sourceIdentityFile.get().asFile.toPath()
+        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, asset)
         if (offline.get()) {
             reuseOfflineInstallation(
                 destination,
                 assetChecksum,
                 executableChecksum,
+                sourceIdentity,
+                expectedSourceIdentity,
                 configuredSha256,
             )
             return
@@ -145,6 +158,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                         destination,
                         assetChecksum,
                         executableChecksum,
+                        sourceIdentity,
+                        expectedSourceIdentity,
                         configuredSha256,
                     )
                 ) {
@@ -173,6 +188,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 destination,
                 assetChecksum,
                 executableChecksum,
+                sourceIdentity,
+                expectedSourceIdentity,
                 configuredSha256,
             )
         ) {
@@ -203,7 +220,16 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 selectedReleaseTag,
                 asset,
                 source,
-            )
+            ) { metadataSource ->
+                val token = if (
+                    metadataSource.host.equals("api.github.com", ignoreCase = true)
+                ) {
+                    githubToken.orNull?.trim()?.ifEmpty { null }
+                } else {
+                    null
+                }
+                readText(metadataSource, token)
+            }
             val downloadedSha256 = sha256(download)
             if (downloadedSha256 != expectedAssetSha256) {
                 throw GradleException(
@@ -226,6 +252,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             moveAtomically(preparedExecutable, destination)
             writeResolvedVersion(assetChecksum, expectedAssetSha256)
             writeResolvedVersion(executableChecksum, preparedExecutableSha256)
+            writeResolvedVersion(sourceIdentity, expectedSourceIdentity)
             if (resolvedVersion != null) {
                 writeResolvedVersion(versionFile, resolvedVersion)
             }
@@ -246,6 +273,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         destination: Path,
         assetChecksum: Path,
         executableChecksum: Path,
+        sourceIdentity: Path,
+        expectedSourceIdentity: String,
         configuredSha256: String?,
     ) {
         if (!Files.isRegularFile(destination)) {
@@ -259,6 +288,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 destination,
                 assetChecksum,
                 executableChecksum,
+                sourceIdentity,
+                expectedSourceIdentity,
                 configuredSha256,
             )
         ) {
@@ -283,43 +314,14 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             requestedVersion ?: resolvedVersion ?: "latest release"
 
         /**
-         * Resolves the trusted digest for a downloaded release asset.
-         */
-        fun resolveExpectedAssetSha256(
-            configuredSha256: String?,
-            baseUrl: String,
-            releaseTag: String?,
-            asset: String,
-            source: URI,
-        ): String {
-            if (configuredSha256 != null) {
-                return configuredSha256
-            }
-            if (releaseTag != null) {
-                val githubApi = githubReleaseApi(baseUrl, releaseTag)
-                if (githubApi != null) {
-                    return parseGitHubAssetSha256(readText(githubApi), asset)
-                }
-            }
-            val checksumSource = URI.create("$source.sha256")
-            return try {
-                parseSha256File(readText(checksumSource))
-            } catch (exception: GradleException) {
-                throw GradleException(
-                    "Could not resolve a SHA-256 digest for Embed Code asset `$asset`. " +
-                        "Publish `$checksumSource` or configure `embedCode.sha256`.",
-                    exception,
-                )
-            }
-        }
-
-        /**
          * Checks both the trusted release-asset digest and cached executable contents.
          */
         fun isTrustedCachedInstallation(
             destination: Path,
             assetChecksumFile: Path,
             executableChecksumFile: Path,
+            sourceIdentityFile: Path,
+            expectedSourceIdentity: String,
             configuredSha256: String?,
         ): Boolean {
             if (!Files.isRegularFile(destination)) {
@@ -327,6 +329,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
             val storedAssetSha256 = readStoredSha256(assetChecksumFile) ?: return false
             val storedExecutableSha256 = readStoredSha256(executableChecksumFile) ?: return false
+            val storedSourceIdentity = readStoredSha256(sourceIdentityFile) ?: return false
+            if (storedSourceIdentity != expectedSourceIdentity) {
+                return false
+            }
             if (configuredSha256 != null && configuredSha256 != storedAssetSha256) {
                 return false
             }
@@ -452,7 +458,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         /**
          * Reads UTF-8 text from [source], reporting HTTP failures clearly.
          */
-        fun readText(source: URI): String {
+        fun readText(source: URI, githubToken: String? = null): String {
             var connection: URLConnection? = null
             try {
                 connection = source.toURL().openConnection()
@@ -460,6 +466,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 connection.readTimeout = READ_TIMEOUT_MILLIS
                 connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
                 connection.setRequestProperty("Accept", "application/vnd.github+json")
+                if (githubToken != null) {
+                    connection.setRequestProperty("Authorization", "Bearer $githubToken")
+                }
                 if (connection is HttpURLConnection) {
                     connection.instanceFollowRedirects = true
                     val status = connection.responseCode

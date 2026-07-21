@@ -28,10 +28,12 @@ package io.spine.embedcode.gradle
 
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.net.URI
 
 @DisplayName("Checksum support should")
 internal class ChecksumSpec {
@@ -48,6 +50,20 @@ internal class ChecksumSpec {
         val digest = "1".repeat(64)
 
         assertEquals(digest, parseSha256File("$digest  embed-code-linux\n"))
+    }
+
+    @Test
+    fun `distinguish release assets in cache metadata`() {
+        val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
+
+        assertNotEquals(
+            releaseAssetIdentity(baseUrl, "embed-code-macos-x64.zip"),
+            releaseAssetIdentity(baseUrl, "embed-code-macos-arm64.zip"),
+        )
+        assertNotEquals(
+            releaseAssetIdentity(baseUrl, "embed-code-linux"),
+            releaseAssetIdentity("https://releases.example.com/embed-code", "embed-code-linux"),
+        )
     }
 
     @Test
@@ -74,6 +90,57 @@ internal class ChecksumSpec {
             """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
 
         assertEquals(digest, parseGitHubAssetSha256(json, "embed-code-linux"))
+    }
+
+    @Test
+    fun `prefer a companion checksum over GitHub release metadata`() {
+        val digest = "3".repeat(64)
+        val assetSource = URI.create(
+            "https://github.com/SpineEventEngine/embed-code-go/" +
+                "releases/download/v1.2.4/embed-code-linux",
+        )
+        val requests = mutableListOf<URI>()
+
+        val resolved = resolveExpectedAssetSha256(
+            null,
+            "https://github.com/SpineEventEngine/embed-code-go/releases",
+            "v1.2.4",
+            "embed-code-linux",
+            assetSource,
+        ) { source ->
+            requests.add(source)
+            "$digest  embed-code-linux\n"
+        }
+
+        assertEquals(digest, resolved)
+        assertEquals(listOf(URI.create("$assetSource.sha256")), requests)
+    }
+
+    @Test
+    fun `fall back to GitHub release metadata when a companion checksum is absent`() {
+        val digest = "4".repeat(64)
+        val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
+        val assetSource = URI.create("$baseUrl/download/v1.2.4/embed-code-linux")
+        val githubApi = githubReleaseApi(baseUrl, "v1.2.4")!!
+        val requests = mutableListOf<URI>()
+
+        val resolved = resolveExpectedAssetSha256(
+            null,
+            baseUrl,
+            "v1.2.4",
+            "embed-code-linux",
+            assetSource,
+        ) { source ->
+            requests.add(source)
+            if (source == githubApi) {
+                """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
+            } else {
+                throw GradleException("Checksum asset is absent.")
+            }
+        }
+
+        assertEquals(digest, resolved)
+        assertEquals(listOf(URI.create("$assetSource.sha256"), githubApi), requests)
     }
 
     @Test

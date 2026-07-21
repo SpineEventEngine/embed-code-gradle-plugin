@@ -42,6 +42,7 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipEntry
@@ -149,6 +150,62 @@ internal class EmbedCodePluginSpec {
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun `redownload an explicit version when the release mirror changes`() {
+        val firstMirror = projectDirectory.resolve("first-releases")
+        val secondMirror = projectDirectory.resolve("second-releases")
+        createFakeRelease(firstMirror, marker = "first-mirror")
+        createFakeRelease(secondMirror, marker = "second-mirror")
+        writeBuildFile(
+            version = TEST_RELEASE_VERSION,
+            downloadBaseUrl = firstMirror.toUri().toString().trimEnd('/'),
+        )
+        runner(":installEmbedCode").build()
+
+        writeBuildFile(
+            version = TEST_RELEASE_VERSION,
+            downloadBaseUrl = secondMirror.toUri().toString().trimEnd('/'),
+        )
+        val result = runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+        val installedExecutable = projectDirectory.resolve(
+            "build/embed-code/$TEST_RELEASE_VERSION/$executableName",
+        )
+
+        result.output shouldContain "Downloading Embed Code $TEST_RELEASE_VERSION"
+        Files.readString(installedExecutable) shouldContain "release-marker: second-mirror"
+    }
+
+    @Test
+    fun `ignore an ambient GitHub token unless explicitly configured`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named("installEmbedCode") {
+                doFirst {
+                    val token = javaClass.getMethod("getGithubToken").invoke(this)
+                        as org.gradle.api.provider.Property<*>
+                    check(!token.isPresent) {
+                        "The plugin must not use GITHUB_TOKEN implicitly."
+                    }
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+        val environment = System.getenv().toMutableMap()
+        environment["GITHUB_TOKEN"] = "ambient-token"
+
+        val result = runner(":installEmbedCode")
+            .withEnvironment(environment)
+            .build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
     @Test
@@ -673,6 +730,7 @@ internal class EmbedCodePluginSpec {
         root: Path,
         version: String = TEST_RELEASE_VERSION,
         tag: String = "v$version",
+        marker: String = version,
     ) {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
@@ -687,6 +745,7 @@ internal class EmbedCodePluginSpec {
             executable,
             """
             #!/bin/sh
+            # release-marker: $marker
             : > arguments.txt
             for argument in "${'$'}@"; do
               printf '%s\n' "${'$'}argument" >> arguments.txt
