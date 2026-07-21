@@ -51,9 +51,8 @@ public abstract class EmbedCodeExtension {
     /**
      * An optional SHA-256 digest of the configured release asset.
      *
-     * The plugin resolves this digest automatically for GitHub releases and
-     * mirrors that publish a companion `.sha256` file. Configure this property
-     * only when a custom release mirror does not expose either mechanism.
+     * The plugin resolves this digest automatically for releases hosted on
+     * `github.com`. Configure this property to pin a digest explicitly.
      */
     public abstract val sha256: Property<String>
 
@@ -125,8 +124,7 @@ public abstract class EmbedCodeExtension {
      *
      * The plugin appends `/latest/download/<platform-asset>` when no version is
      * configured, or `/download/v<version>/<platform-asset>` for an explicit
-     * version. This property primarily supports release mirrors and functional
-     * testing.
+     * version. This property primarily supports functional testing.
      */
     public abstract val downloadBaseUrl: Property<String>
 

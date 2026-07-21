@@ -100,25 +100,12 @@ embedCode {
 ```
 
 Before installing an executable, the plugin verifies the release asset's SHA-256
-digest. It first looks for a companion checksum file next to the asset, for
-example `embed-code-linux.sha256`. For GitHub releases without that file, the
-digest is read from the GitHub Releases API. API requests are unauthenticated
-unless a token provider is configured explicitly:
+digest from the GitHub Releases API. API requests are unauthenticated unless a
+token provider is configured explicitly:
 
 ```kotlin
 embedCode {
     githubToken.set(providers.environmentVariable("EMBED_CODE_GITHUB_TOKEN"))
-}
-```
-
-If a custom mirror provides no companion checksum file, configure the release
-asset digest explicitly:
-
-```kotlin
-embedCode {
-    version.set("1.2.4")
-    downloadBaseUrl.set("https://releases.example.com/embed-code")
-    sha256.set("5ee7f23ece8dfd4de293e0fcbd45a8b08a709aaa9a952f4e2d47ed21f1122a6b")
 }
 ```
 

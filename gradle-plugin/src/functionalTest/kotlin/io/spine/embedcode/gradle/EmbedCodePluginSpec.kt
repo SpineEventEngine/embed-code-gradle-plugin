@@ -153,34 +153,6 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `redownload an explicit version when the release mirror changes`() {
-        val firstMirror = projectDirectory.resolve("first-releases")
-        val secondMirror = projectDirectory.resolve("second-releases")
-        createFakeRelease(firstMirror, marker = "first-mirror")
-        createFakeRelease(secondMirror, marker = "second-mirror")
-        writeBuildFile(
-            version = TEST_RELEASE_VERSION,
-            downloadBaseUrl = firstMirror.toUri().toString().trimEnd('/'),
-        )
-        runner(":installEmbedCode").build()
-
-        writeBuildFile(
-            version = TEST_RELEASE_VERSION,
-            downloadBaseUrl = secondMirror.toUri().toString().trimEnd('/'),
-        )
-        val result = runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.installedExecutableName(
-            System.getProperty("os.name"),
-        )
-        val installedExecutable = projectDirectory.resolve(
-            "build/embed-code/$TEST_RELEASE_VERSION/$executableName",
-        )
-
-        result.output shouldContain "Downloading Embed Code $TEST_RELEASE_VERSION"
-        Files.readString(installedExecutable) shouldContain "release-marker: second-mirror"
-    }
-
-    @Test
     fun `ignore an ambient GitHub token unless explicitly configured`() {
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
@@ -241,10 +213,17 @@ internal class EmbedCodePluginSpec {
         val downloads = AtomicInteger()
         val server = startReleaseServer(latestTag, versionChecks, downloads)
         try {
-            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
+            )
             runner(":installEmbedCode").build()
 
             latestTag.set("v$nextVersion")
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                sha256 = releaseAssetSha256(version = nextVersion),
+            )
             runner(":installEmbedCode").build()
 
             versionChecks.get() shouldBe 2
@@ -333,14 +312,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reject a release asset whose SHA-256 digest does not match`() {
-        val platform = EmbedCodePlatform.detect(
-            System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-        )
-        Files.writeString(
-            releaseDirectory.resolve("latest/download/${platform.assetName}.sha256"),
-            "${"0".repeat(64)}  ${platform.assetName}\n",
-        )
+        writeBuildFile(sha256 = "0".repeat(64))
 
         val result = runner(":installEmbedCode").buildAndFail()
 
@@ -364,18 +336,10 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `accept a user-provided checksum for a custom mirror`() {
-        val platform = EmbedCodePlatform.detect(
-            System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-        )
-        val asset = releaseDirectory.resolve(
-            "download/$TEST_RELEASE_TAG/${platform.assetName}",
-        )
-        Files.delete(asset.resolveSibling("${asset.fileName}.sha256"))
+    fun `accept an explicitly pinned release asset`() {
         writeBuildFile(
             version = TEST_RELEASE_VERSION,
-            sha256 = sha256(asset),
+            sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
         )
 
         val result = runner(":installEmbedCode").build()
@@ -661,7 +625,7 @@ internal class EmbedCodePluginSpec {
         sha256: String? = null,
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
-        val checksumConfiguration = sha256?.let { "sha256.set(\"$it\")" }.orEmpty()
+        val configuredSha256 = sha256 ?: releaseAssetSha256(version = version)
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -671,7 +635,7 @@ internal class EmbedCodePluginSpec {
 
             embedCode {
                 $versionConfiguration
-                $checksumConfiguration
+                sha256.set("$configuredSha256")
                 downloadBaseUrl.set("$downloadBaseUrl")
                 codePath.set(layout.projectDirectory.dir("code"))
                 docsPath.set(layout.projectDirectory.dir("docs"))
@@ -714,6 +678,7 @@ internal class EmbedCodePluginSpec {
 
             embedCode {
                 downloadBaseUrl.set("$baseUrl")
+                sha256.set("${releaseAssetSha256()}")
                 $directSource
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
@@ -730,7 +695,6 @@ internal class EmbedCodePluginSpec {
         root: Path,
         version: String = TEST_RELEASE_VERSION,
         tag: String = "v$version",
-        marker: String = version,
     ) {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
@@ -745,7 +709,7 @@ internal class EmbedCodePluginSpec {
             executable,
             """
             #!/bin/sh
-            # release-marker: $marker
+            # release-marker: $version
             : > arguments.txt
             for argument in "${'$'}@"; do
               printf '%s\n' "${'$'}argument" >> arguments.txt
@@ -768,24 +732,37 @@ internal class EmbedCodePluginSpec {
         } else {
             Files.copy(executable, asset)
         }
-        writeChecksumFile(asset)
         val latestAsset = latestDirectory.resolve(platform.assetName)
         Files.copy(
             asset,
             latestAsset,
             StandardCopyOption.REPLACE_EXISTING,
         )
-        writeChecksumFile(latestAsset)
     }
 
     /**
-     * Writes a companion SHA-256 file for [asset].
+     * Returns the digest of a fake release asset.
      */
-    private fun writeChecksumFile(asset: Path) {
-        Files.writeString(
-            asset.resolveSibling("${asset.fileName}.sha256"),
-            "${sha256(asset)}  ${asset.fileName}\n",
+    private fun releaseAssetSha256(
+        root: Path = releaseDirectory,
+        version: String? = null,
+    ): String {
+        val platform = EmbedCodePlatform.detect(
+            System.getProperty("os.name"),
+            System.getProperty("os.arch"),
         )
+        val asset = if (version == null) {
+            root.resolve("latest/download/${platform.assetName}")
+        } else {
+            val normalizedVersion = version.trim()
+            val tag = if (normalizedVersion.startsWith('v')) {
+                normalizedVersion
+            } else {
+                "v$normalizedVersion"
+            }
+            root.resolve("download/$tag/${platform.assetName}")
+        }
+        return sha256(asset)
     }
 
     /**
@@ -812,9 +789,7 @@ internal class EmbedCodePluginSpec {
         }
         server.createContext("/releases/download/") { exchange ->
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
-            if (!relativePath.endsWith(".sha256")) {
-                downloads.incrementAndGet()
-            }
+            downloads.incrementAndGet()
             val asset = releaseDirectory.resolve("download").resolve(relativePath).normalize()
             if (!asset.startsWith(releaseDirectory.resolve("download")) || !Files.isRegularFile(asset)) {
                 exchange.sendResponseHeaders(404, -1)

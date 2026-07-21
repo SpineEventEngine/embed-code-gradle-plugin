@@ -104,7 +104,7 @@ public class EmbedCodePlugin : Plugin<Project> {
                     }.orElse("embed-code/latest/source.sha256"),
                 ),
             )
-            // Always verify cached executable contents before allowing execution.
+            // Intentionally rerun and re-hash the cached executable before every execution.
             task.outputs.upToDateWhen { false }
         }
 

@@ -46,13 +46,6 @@ internal class ChecksumSpec {
     }
 
     @Test
-    fun `parse a conventional checksum file`() {
-        val digest = "1".repeat(64)
-
-        assertEquals(digest, parseSha256File("$digest  embed-code-linux\n"))
-    }
-
-    @Test
     fun `distinguish release assets in cache metadata`() {
         val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
 
@@ -93,34 +86,9 @@ internal class ChecksumSpec {
     }
 
     @Test
-    fun `prefer a companion checksum over GitHub release metadata`() {
+    fun `resolve an asset digest from GitHub release metadata`() {
         val digest = "3".repeat(64)
-        val assetSource = URI.create(
-            "https://github.com/SpineEventEngine/embed-code-go/" +
-                "releases/download/v1.2.4/embed-code-linux",
-        )
-        val requests = mutableListOf<URI>()
-
-        val resolved = resolveExpectedAssetSha256(
-            null,
-            "https://github.com/SpineEventEngine/embed-code-go/releases",
-            "v1.2.4",
-            "embed-code-linux",
-            assetSource,
-        ) { source ->
-            requests.add(source)
-            "$digest  embed-code-linux\n"
-        }
-
-        assertEquals(digest, resolved)
-        assertEquals(listOf(URI.create("$assetSource.sha256")), requests)
-    }
-
-    @Test
-    fun `fall back to GitHub release metadata when a companion checksum is absent`() {
-        val digest = "4".repeat(64)
         val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
-        val assetSource = URI.create("$baseUrl/download/v1.2.4/embed-code-linux")
         val githubApi = githubReleaseApi(baseUrl, "v1.2.4")!!
         val requests = mutableListOf<URI>()
 
@@ -129,18 +97,67 @@ internal class ChecksumSpec {
             baseUrl,
             "v1.2.4",
             "embed-code-linux",
-            assetSource,
         ) { source ->
             requests.add(source)
-            if (source == githubApi) {
-                """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
-            } else {
-                throw GradleException("Checksum asset is absent.")
-            }
+            """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
         }
 
         assertEquals(digest, resolved)
-        assertEquals(listOf(URI.create("$assetSource.sha256"), githubApi), requests)
+        assertEquals(listOf(githubApi), requests)
+    }
+
+    @Test
+    fun `use a configured checksum without reading metadata`() {
+        val digest = "4".repeat(64)
+
+        val resolved = resolveExpectedAssetSha256(
+            digest,
+            "file:///tmp/embed-code/releases",
+            null,
+            "embed-code-linux",
+        ) {
+            throw AssertionError("Metadata must not be read for a configured checksum.")
+        }
+
+        assertEquals(digest, resolved)
+    }
+
+    @Test
+    fun `require a configured checksum outside GitHub`() {
+        val error = assertThrows(GradleException::class.java) {
+            resolveExpectedAssetSha256(
+                null,
+                "file:///tmp/embed-code/releases",
+                null,
+                "embed-code-linux",
+            ) {
+                throw AssertionError("Metadata must not be read outside GitHub.")
+            }
+        }
+
+        assertEquals(
+            "Automatic SHA-256 resolution is available only for github.com releases. " +
+                "Configure `embedCode.sha256` for asset `embed-code-linux`.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `report a GitHub metadata failure`() {
+        val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
+
+        val error = assertThrows(GradleException::class.java) {
+            resolveExpectedAssetSha256(
+                null,
+                baseUrl,
+                "v1.2.4",
+                "embed-code-linux",
+            ) {
+                throw GradleException("GitHub metadata is unavailable.")
+            }
+        }
+
+        assertEquals("GitHub metadata is unavailable.", error.cause?.message)
     }
 
     @Test

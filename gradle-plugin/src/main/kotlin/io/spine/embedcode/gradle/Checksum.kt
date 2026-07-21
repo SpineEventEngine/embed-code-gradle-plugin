@@ -88,15 +88,6 @@ internal fun normalizeSha256(value: String): String {
 }
 
 /**
- * Reads the digest from common checksum-file formats.
- */
-internal fun parseSha256File(contents: String): String {
-    val firstLine = contents.lineSequence().firstOrNull { it.isNotBlank() }
-        ?: throw GradleException("The SHA-256 checksum file is empty.")
-    return normalizeSha256(firstLine.trim().split(Regex("\\s+"), limit = 2).first())
-}
-
-/**
  * Returns the GitHub release API URI represented by [releaseBaseUrl].
  */
 internal fun githubReleaseApi(releaseBaseUrl: String, releaseTag: String): URI? {
@@ -136,41 +127,31 @@ internal fun parseGitHubAssetSha256(json: String, assetName: String): String {
 /**
  * Resolves the trusted digest for a downloaded release asset.
  *
- * Companion checksum files are preferred because they do not consume GitHub
- * REST API quota. GitHub release metadata is used as a fallback.
+ * The configured digest takes precedence. Otherwise, the digest is read from
+ * the GitHub Releases API for releases hosted on `github.com`.
  */
 internal fun resolveExpectedAssetSha256(
     configuredSha256: String?,
     releaseBaseUrl: String,
     releaseTag: String?,
     assetName: String,
-    assetSource: URI,
     readMetadata: (URI) -> String,
 ): String {
     if (configuredSha256 != null) {
         return configuredSha256
     }
-    val checksumSource = URI.create("$assetSource.sha256")
-    val checksumFailure = try {
-        return parseSha256File(readMetadata(checksumSource))
-    } catch (exception: GradleException) {
-        exception
-    }
     val githubApi = releaseTag?.let { githubReleaseApi(releaseBaseUrl, it) }
-    if (githubApi != null) {
-        try {
-            return parseGitHubAssetSha256(readMetadata(githubApi), assetName)
-        } catch (exception: GradleException) {
-            throw GradleException(
-                "Could not resolve a SHA-256 digest for Embed Code asset `$assetName` " +
-                    "from `$checksumSource` or `$githubApi`.",
-                exception,
-            )
-        }
+        ?: throw GradleException(
+            "Automatic SHA-256 resolution is available only for github.com releases. " +
+                "Configure `embedCode.sha256` for asset `$assetName`.",
+        )
+    return try {
+        parseGitHubAssetSha256(readMetadata(githubApi), assetName)
+    } catch (exception: GradleException) {
+        throw GradleException(
+            "Could not resolve a SHA-256 digest for Embed Code asset `$assetName` " +
+                "from `$githubApi`.",
+            exception,
+        )
     }
-    throw GradleException(
-        "Could not resolve a SHA-256 digest for Embed Code asset `$assetName`. " +
-            "Publish `$checksumSource` or configure `embedCode.sha256`.",
-        checksumFailure,
-    )
 }

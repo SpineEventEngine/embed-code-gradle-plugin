@@ -182,7 +182,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         if (
             (
                 requestedVersion != null ||
-                    resolvedVersion != null && readResolvedVersion(versionFile) == resolvedVersion
+                    resolvedVersion != null &&
+                    readResolvedVersion(versionFile) == resolvedVersion
             ) &&
             isTrustedCachedInstallation(
                 destination,
@@ -219,7 +220,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 baseUrl,
                 selectedReleaseTag,
                 asset,
-                source,
             ) { metadataSource ->
                 val token = if (
                     metadataSource.host.equals("api.github.com", ignoreCase = true)
@@ -358,8 +358,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         /**
          * Returns the tag of the release targeted by the latest-release redirect.
          *
-         * Non-HTTP release mirrors cannot expose an HTTP redirect, so they keep
-         * using the latest asset URL directly.
+         * Non-HTTP sources have no redirect response, so their tag is unknown.
          */
         fun resolveLatestVersion(baseUrl: String): String? {
             val source = URI.create("$baseUrl/latest")
