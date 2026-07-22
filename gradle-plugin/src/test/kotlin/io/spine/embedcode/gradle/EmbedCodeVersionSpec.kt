@@ -24,5 +24,44 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** Version of the Embed Code Gradle plugin. */
-extra.set("embedCodePluginVersion", "0.1.1")
+package io.spine.embedcode.gradle
+
+import org.gradle.api.InvalidUserDataException
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+@DisplayName("`validateVersion` should")
+internal class EmbedCodeVersionSpec {
+
+    @Test
+    fun `accept and trim safe release tags`() {
+        val tags = listOf(
+            "v1.2.3",
+            "1.0.0-beta+build",
+            "2.0_rc1",
+            "latest",
+        )
+
+        tags.forEach { tag ->
+            assertEquals(tag, validateVersion(" $tag "))
+        }
+    }
+
+    @Test
+    fun `reject unsafe release tags`() {
+        val tags = listOf("../x", "a/b", "a%2f")
+
+        tags.forEach { tag ->
+            assertThrows(InvalidUserDataException::class.java) {
+                validateVersion(tag)
+            }
+        }
+    }
+
+    @Test
+    fun `treat an empty release tag as latest`() {
+        assertEquals("", validateVersion("  "))
+    }
+}

@@ -24,5 +24,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** Version of the Embed Code Gradle plugin. */
-extra.set("embedCodePluginVersion", "0.1.1")
+package io.spine.embedcode.gradle
+
+import org.gradle.api.InvalidUserDataException
+
+private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
+
+/**
+ * Trims and validates a user-configured Embed Code release tag.
+ *
+ * The tag becomes both a release URL segment and a cache-directory name,
+ * so only characters that are safe in both locations are accepted.
+ * An empty tag selects the latest release.
+ */
+internal fun validateVersion(value: String): String {
+    val version = value.trim()
+    if (version.isNotEmpty() && !validReleaseTag.matches(version)) {
+        throw InvalidUserDataException(
+            "Embed Code release tag `$value` is invalid. " +
+                "Use letters, digits, dots, hyphens, underscores, plus signs, or tildes, " +
+                "and start with a letter or digit.",
+        )
+    }
+    return version
+}
