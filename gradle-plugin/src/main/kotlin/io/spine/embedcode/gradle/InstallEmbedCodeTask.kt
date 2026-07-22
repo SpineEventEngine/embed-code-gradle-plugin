@@ -229,7 +229,11 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             Files.createDirectories(destination.parent)
             val release = requestedTag ?: "latest release"
             logger.lifecycle("Downloading Embed Code {} from {}", release, source)
-            download(source, download)
+            try {
+                download(source, download)
+            } catch (exception: GradleException) {
+                throw addReleaseTagMigrationHint(exception, requestedTag)
+            }
             val expectedAssetSha256 = resolveExpectedAssetSha256(
                 configuredSha256,
                 baseUrl,
@@ -347,6 +351,23 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
 
         fun selectedVersionName(requestedTag: String?, resolvedTag: String?): String =
             requestedTag ?: resolvedTag ?: "latest release"
+
+        /**
+         * Adds an upgrade hint when an exact tag may be missing its former automatic prefix.
+         */
+        fun addReleaseTagMigrationHint(
+            exception: GradleException,
+            requestedTag: String?,
+        ): GradleException {
+            if (requestedTag == null || requestedTag.startsWith('v')) {
+                return exception
+            }
+            return GradleException(
+                "${exception.message} A release tag `v$requestedTag` may exist; " +
+                    "previous plugin versions added this prefix automatically.",
+                exception,
+            )
+        }
 
         /**
          * Checks both the trusted release-asset digest and cached executable contents.

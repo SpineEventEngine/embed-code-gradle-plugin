@@ -38,6 +38,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
+import java.net.HttpURLConnection.HTTP_MOVED_TEMP
+import java.net.HttpURLConnection.HTTP_UNAVAILABLE
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
@@ -238,12 +240,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reuse latest executable in offline mode`() {
-        val latestTag = AtomicReference(TEST_RELEASE_TAG)
-        val server = startReleaseServer(
-            latestTag,
-            AtomicInteger(),
-            AtomicInteger(),
-        )
+        val server = startReleaseServer()
         writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
         try {
             runner(":installEmbedCode").build()
@@ -259,36 +256,41 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reuse cached executable when the latest release check fails`() {
-        val latestTag = AtomicReference(TEST_RELEASE_TAG)
+        val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
         val server = startReleaseServer(
-            latestTag,
-            AtomicInteger(),
-            AtomicInteger(),
+            latestStatus = latestStatus,
         )
         writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
         try {
             runner(":installEmbedCode").build()
+            latestStatus.set(HTTP_UNAVAILABLE)
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            result.output shouldContain "Could not check the latest Embed Code release"
+            result.output shouldContain "HTTP 503"
+            result.output shouldContain "Reusing the cached executable"
         } finally {
             server.stop(0)
         }
-
-        val result = runner(":installEmbedCode").build()
-
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Could not check the latest Embed Code release"
-        result.output shouldContain "Reusing the cached executable"
     }
 
     @Test
     fun `report a failed latest release check without a cached executable`() {
-        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        val baseUrl = "http://127.0.0.1:${server.address.port}/releases"
-        server.stop(0)
-        writeBuildFile(downloadBaseUrl = baseUrl)
+        val server = startReleaseServer(
+            latestStatus = AtomicInteger(HTTP_UNAVAILABLE),
+        )
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
 
-        val result = runner(":installEmbedCode").buildAndFail()
+            val result = runner(":installEmbedCode").buildAndFail()
 
-        result.output shouldContain "Could not resolve the latest Embed Code release"
+            result.output shouldContain
+                "Could not resolve the latest Embed Code release: HTTP 503"
+        } finally {
+            server.stop(0)
+        }
     }
 
     @Test
@@ -537,7 +539,7 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `report an HTTP status returned for a release asset`() {
+    fun `suggest a prefixed tag when a pinned release download fails`() {
         val server = HttpServer.create(
             InetSocketAddress("127.0.0.1", 0),
             0,
@@ -549,11 +551,18 @@ internal class EmbedCodePluginSpec {
         server.start()
         try {
             val baseUrl = "http://127.0.0.1:${server.address.port}/releases"
-            writeBuildFile(downloadBaseUrl = baseUrl)
+            writeBuildFile(
+                version = TEST_RELEASE_VERSION,
+                downloadBaseUrl = baseUrl,
+                sha256 = "0".repeat(64),
+            )
 
             val result = runner(":installEmbedCode").buildAndFail()
 
             result.output shouldContain "HTTP 503"
+            result.output shouldContain
+                "A release tag `v$TEST_RELEASE_VERSION` may exist; " +
+                "previous plugin versions added this prefix automatically."
         } finally {
             server.stop(0)
         }
@@ -898,24 +907,28 @@ internal class EmbedCodePluginSpec {
     }
 
     /**
-     * Starts a release server whose latest endpoint redirects to a mutable tag.
+     * Starts a release server with mutable latest-release status and tag responses.
      */
     private fun startReleaseServer(
-        latestTag: AtomicReference<String>,
-        versionChecks: AtomicInteger,
-        downloads: AtomicInteger,
+        latestTag: AtomicReference<String> = AtomicReference(TEST_RELEASE_TAG),
+        versionChecks: AtomicInteger = AtomicInteger(),
+        downloads: AtomicInteger = AtomicInteger(),
+        latestStatus: AtomicInteger = AtomicInteger(HTTP_MOVED_TEMP),
     ): HttpServer {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/releases/latest") { exchange ->
             versionChecks.incrementAndGet()
+            val responseStatus = latestStatus.get()
             if (exchange.requestMethod != "HEAD") {
                 exchange.sendResponseHeaders(405, -1)
+            } else if (responseStatus != HTTP_MOVED_TEMP) {
+                exchange.sendResponseHeaders(responseStatus, -1)
             } else {
                 exchange.responseHeaders.add(
                     "Location",
                     "/releases/tag/${latestTag.get()}",
                 )
-                exchange.sendResponseHeaders(302, -1)
+                exchange.sendResponseHeaders(HTTP_MOVED_TEMP, -1)
             }
             exchange.close()
         }
