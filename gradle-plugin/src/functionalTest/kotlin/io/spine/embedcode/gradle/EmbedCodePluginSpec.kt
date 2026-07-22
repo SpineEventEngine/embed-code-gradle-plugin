@@ -554,10 +554,10 @@ internal class EmbedCodePluginSpec {
         val lowerTag = "vcase-test"
         val upperTag = "VCASE-test"
         createFakeRelease(releaseDirectory, version = "lower", tag = lowerTag)
-        createFakeRelease(releaseDirectory, version = "upper", tag = upperTag)
-
         writeBuildFile(version = lowerTag)
         runner(":installEmbedCode").build()
+
+        createFakeRelease(releaseDirectory, version = "upper", tag = upperTag)
         // Change the file length as well as its case so Gradle cannot reuse a timestamp/size
         // file-system snapshot for the rewritten build script.
         writeBuildFile(version = " $upperTag ")
@@ -567,9 +567,13 @@ internal class EmbedCodePluginSpec {
         Files.readString(
             installationDirectory(lowerTag).resolve("version.txt"),
         ).trim() shouldBe lowerTag
+        Files.readString(installedExecutable(lowerTag)) shouldContain
+            "# release-marker: lower"
         Files.readString(
             installationDirectory(upperTag).resolve("version.txt"),
         ).trim() shouldBe upperTag
+        Files.readString(installedExecutable(upperTag)) shouldContain
+            "# release-marker: upper"
     }
 
     @Test
@@ -1197,7 +1201,11 @@ internal class EmbedCodePluginSpec {
                 zip.closeEntry()
             }
         } else {
-            Files.copy(executable, asset)
+            Files.copy(
+                executable,
+                asset,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
         }
         val latestAsset = latestDirectory.resolve(platform.assetName)
         Files.copy(
