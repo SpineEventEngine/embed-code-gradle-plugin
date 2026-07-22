@@ -257,7 +257,11 @@ internal class EmbedCodePluginSpec {
     @Test
     fun `reuse cached executable when the latest release check fails`() {
         val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
+        val versionChecks = AtomicInteger()
+        val downloads = AtomicInteger()
         val server = startReleaseServer(
+            versionChecks = versionChecks,
+            downloads = downloads,
             latestStatus = latestStatus,
         )
         writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
@@ -268,8 +272,10 @@ internal class EmbedCodePluginSpec {
             val result = runner(":installEmbedCode").build()
 
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            versionChecks.get() shouldBe 2
+            downloads.get() shouldBe 1
             result.output shouldContain "Could not check the latest Embed Code release"
-            result.output shouldContain "HTTP 503"
+            result.output shouldContain "HTTP 503 from ${server.releaseBaseUrl}/latest"
             result.output shouldContain "Reusing the cached executable"
         } finally {
             server.stop(0)
@@ -306,7 +312,11 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `report a failed latest release check without a cached executable`() {
+        val versionChecks = AtomicInteger()
+        val downloads = AtomicInteger()
         val server = startReleaseServer(
+            versionChecks = versionChecks,
+            downloads = downloads,
             latestStatus = AtomicInteger(HTTP_UNAVAILABLE),
         )
         try {
@@ -314,8 +324,13 @@ internal class EmbedCodePluginSpec {
 
             val result = runner(":installEmbedCode").buildAndFail()
 
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
+            versionChecks.get() shouldBe 1
+            downloads.get() shouldBe 0
             result.output shouldContain
-                "Could not resolve the latest Embed Code release: HTTP 503"
+                "Could not resolve the latest Embed Code release: " +
+                "HTTP 503 from ${server.releaseBaseUrl}/latest."
+            result.output shouldNotContain "Reusing the cached executable"
         } finally {
             server.stop(0)
         }
@@ -805,6 +820,42 @@ internal class EmbedCodePluginSpec {
             result.output shouldContain
                 "A release tag `v$TEST_RELEASE_VERSION` may exist; " +
                 "previous plugin versions added this prefix automatically."
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `report an HTTP status returned for a release asset`() {
+        val downloads = AtomicInteger()
+        val server = HttpServer.create(
+            InetSocketAddress("127.0.0.1", 0),
+            0,
+        )
+        server.createContext("/releases/download/") { exchange ->
+            downloads.incrementAndGet()
+            exchange.sendResponseHeaders(503, -1)
+            exchange.close()
+        }
+        server.start()
+        try {
+            val baseUrl = "http://127.0.0.1:${server.address.port}/releases"
+            writeBuildFile(
+                version = TEST_RELEASE_TAG,
+                downloadBaseUrl = baseUrl,
+            )
+
+            val result = runner(":installEmbedCode").buildAndFail()
+
+            val platform = EmbedCodePlatform.detect(
+                System.getProperty("os.name"),
+                System.getProperty("os.arch"),
+            )
+            val source = "$baseUrl/download/$TEST_RELEASE_TAG/${platform.assetName}"
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
+            downloads.get() shouldBe 1
+            result.output shouldContain
+                "Could not download Embed Code: HTTP 503 from $source."
         } finally {
             server.stop(0)
         }
