@@ -27,24 +27,41 @@
 package io.spine.embedcode.gradle
 
 import org.gradle.api.InvalidUserDataException
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 
-private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
+@DisplayName("`validateVersion` should")
+internal class EmbedCodeVersionSpec {
 
-/**
- * Trims and validates a user-configured Embed Code release tag.
- *
- * The tag becomes both a release URL segment and a cache-directory name,
- * so only characters that are safe in both locations are accepted.
- * An empty tag selects the latest release.
- */
-internal fun validateVersion(value: String): String {
-    val version = value.trim()
-    if (version.isNotEmpty() && !validReleaseTag.matches(version)) {
-        throw InvalidUserDataException(
-            "Embed Code release tag `$value` is invalid. " +
-                "Use letters, digits, dots, hyphens, underscores, plus signs, or tildes, " +
-                "and start with a letter or digit.",
+    @Test
+    fun `accept and trim safe release tags`() {
+        val tags = listOf(
+            "v1.2.3",
+            "1.0.0-beta+build",
+            "2.0_rc1",
+            "latest",
         )
+
+        tags.forEach { tag ->
+            assertEquals(tag, validateVersion(" $tag "))
+        }
     }
-    return version
+
+    @Test
+    fun `reject unsafe release tags`() {
+        val tags = listOf("../x", "a/b", "a%2f")
+
+        tags.forEach { tag ->
+            assertThrows(InvalidUserDataException::class.java) {
+                validateVersion(tag)
+            }
+        }
+    }
+
+    @Test
+    fun `treat an empty release tag as latest`() {
+        assertEquals("", validateVersion("  "))
+    }
 }

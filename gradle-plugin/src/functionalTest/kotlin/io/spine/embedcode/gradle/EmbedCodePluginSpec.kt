@@ -132,7 +132,7 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `reuse latest executable when the release version is unchanged`() {
+    fun `reuse latest executable when the release tag is unchanged`() {
         val latestTag = AtomicReference(TEST_RELEASE_TAG)
         val versionChecks = AtomicInteger()
         val downloads = AtomicInteger()
@@ -205,7 +205,7 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `download latest executable when the release version changes`() {
+    fun `download latest executable when the release tag changes`() {
         val nextVersion = "1.2.5-test"
         createFakeRelease(releaseDirectory, nextVersion)
         val latestTag = AtomicReference(TEST_RELEASE_TAG)
@@ -215,14 +215,14 @@ internal class EmbedCodePluginSpec {
         try {
             writeBuildFile(
                 downloadBaseUrl = server.releaseBaseUrl,
-                sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
+                sha256 = releaseAssetSha256(tag = TEST_RELEASE_TAG),
             )
             runner(":installEmbedCode").build()
 
             latestTag.set("v$nextVersion")
             writeBuildFile(
                 downloadBaseUrl = server.releaseBaseUrl,
-                sha256 = releaseAssetSha256(version = nextVersion),
+                sha256 = releaseAssetSha256(tag = "v$nextVersion"),
             )
             runner(":installEmbedCode").build()
 
@@ -302,7 +302,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `keep explicit versions offline when no verified executable is cached`() {
-        writeBuildFile(version = TEST_RELEASE_VERSION)
+        writeBuildFile(version = TEST_RELEASE_TAG)
 
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
@@ -338,8 +338,8 @@ internal class EmbedCodePluginSpec {
     @Test
     fun `accept an explicitly pinned release asset`() {
         writeBuildFile(
-            version = TEST_RELEASE_VERSION,
-            sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
+            version = TEST_RELEASE_TAG,
+            sha256 = releaseAssetSha256(tag = TEST_RELEASE_TAG),
         )
 
         val result = runner(":installEmbedCode").build()
@@ -349,10 +349,10 @@ internal class EmbedCodePluginSpec {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `trim an overridden Embed Code version`() {
-        val overrideVersion = "0.0.0-test"
-        createFakeRelease(releaseDirectory, overrideVersion)
-        writeBuildFile(" $overrideVersion ")
+    fun `trim an overridden Embed Code release tag`() {
+        val overrideTag = "v0.0.0-test"
+        createFakeRelease(releaseDirectory, version = "0.0.0-test", tag = overrideTag)
+        writeBuildFile(" $overrideTag ")
 
         val result = runner(":checkEmbedding").build()
 
@@ -361,12 +361,50 @@ internal class EmbedCodePluginSpec {
             System.getProperty("os.name"),
         )
         Files.exists(
-            projectDirectory.resolve("build/embed-code/$overrideVersion/$executableName"),
+            projectDirectory.resolve(
+                "build/embed-code/versions/$overrideTag/$executableName",
+            ),
         ) shouldBe true
     }
 
     @Test
-    fun `reject a version containing path traversal segments`() {
+    fun `treat an empty release tag as the rolling latest release`() {
+        writeBuildFile(version = "  ")
+
+        val result = runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.exists(
+            projectDirectory.resolve("build/embed-code/latest/$executableName"),
+        ) shouldBe true
+    }
+
+    @Test
+    fun `keep an explicit latest tag separate from the rolling latest cache`() {
+        runner(":installEmbedCode").build()
+        createFakeRelease(releaseDirectory, version = "explicit-latest", tag = "latest")
+        writeBuildFile(version = "latest")
+
+        val result = runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+        val rollingLatest = projectDirectory.resolve("build/embed-code/latest/$executableName")
+        val pinnedLatest = projectDirectory.resolve(
+            "build/embed-code/versions/latest/$executableName",
+        )
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "/download/latest/"
+        Files.readString(rollingLatest) shouldContain "# release-marker: $TEST_RELEASE_VERSION"
+        Files.readString(pinnedLatest) shouldContain "# release-marker: explicit-latest"
+    }
+
+    @Test
+    fun `reject a release tag containing path traversal segments`() {
         writeBuildFile(
             version = "../../escaped",
             sha256 = "0".repeat(64),
@@ -374,13 +412,59 @@ internal class EmbedCodePluginSpec {
 
         val result = runner(":installEmbedCode").buildAndFail()
 
-        result.output shouldContain "Embed Code version `../../escaped` is invalid."
+        result.output shouldContain "Embed Code release tag `../../escaped` is invalid."
         Files.exists(projectDirectory.resolve("escaped")) shouldBe false
     }
 
     @Test
+    fun `validate a release tag configured directly on the installation task`() {
+        writeBuildFile(version = TEST_RELEASE_TAG)
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                version.set("../../escaped")
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "Embed Code release tag `../../escaped` is invalid."
+        Files.exists(projectDirectory.resolve("escaped")) shouldBe false
+    }
+
+    @Test
+    fun `use a release tag configured directly on the installation task`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                version.set("$TEST_RELEASE_TAG")
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.exists(
+            projectDirectory.resolve(
+                "build/embed-code/versions/$TEST_RELEASE_TAG/$executableName",
+            ),
+        ) shouldBe true
+    }
+
+    @Test
     fun `reject an executable path outside the installation directory`() {
-        writeBuildFile(version = TEST_RELEASE_VERSION)
+        writeBuildFile(version = TEST_RELEASE_TAG)
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -400,7 +484,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reject a checksum path outside the installation directory`() {
-        writeBuildFile(version = TEST_RELEASE_VERSION)
+        writeBuildFile(version = TEST_RELEASE_TAG)
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -490,14 +574,14 @@ internal class EmbedCodePluginSpec {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reuse installation when running embed mode`() {
-        writeBuildFile(TEST_RELEASE_VERSION)
+        writeBuildFile(TEST_RELEASE_TAG)
         runner(":checkEmbedding").build()
         releaseDirectory.toFile().deleteRecursively()
 
         val result = runner(":embedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing verified Embed Code $TEST_RELEASE_VERSION"
+        result.output shouldContain "Reusing verified Embed Code $TEST_RELEASE_TAG"
         result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "embed"
     }
@@ -678,7 +762,7 @@ internal class EmbedCodePluginSpec {
         sha256: String? = null,
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
-        val configuredSha256 = sha256 ?: releaseAssetSha256(version = version)
+        val configuredSha256 = sha256 ?: releaseAssetSha256(tag = version)
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -798,22 +882,17 @@ internal class EmbedCodePluginSpec {
      */
     private fun releaseAssetSha256(
         root: Path = releaseDirectory,
-        version: String? = null,
+        tag: String? = null,
     ): String {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
         )
-        val asset = if (version == null) {
+        val normalizedTag = tag?.trim()?.ifEmpty { null }
+        val asset = if (normalizedTag == null) {
             root.resolve("latest/download/${platform.assetName}")
         } else {
-            val normalizedVersion = version.trim()
-            val tag = if (normalizedVersion.startsWith('v')) {
-                normalizedVersion
-            } else {
-                "v$normalizedVersion"
-            }
-            root.resolve("download/$tag/${platform.assetName}")
+            root.resolve("download/$normalizedTag/${platform.assetName}")
         }
         return sha256(asset)
     }

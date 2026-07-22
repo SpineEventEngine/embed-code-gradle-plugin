@@ -55,14 +55,14 @@ import java.util.zip.ZipInputStream
  * Downloads and prepares the Embed Code executable selected for the host.
  *
  * Cached executables are reused only after their SHA-256 integrity metadata is
- * checked. For the latest release, the remote version is checked before an
+ * checked. For the latest release, the remote tag is checked before an
  * existing executable is reused. When that check fails, a previously verified
  * executable remains available.
  */
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
 
-    /** An optional Embed Code release version. */
+    /** An optional Embed Code release tag used verbatim; absent or empty selects latest. */
     @get:Input
     @get:Optional
     public abstract val version: Property<String>
@@ -100,7 +100,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:OutputFile
     public abstract val executableFile: RegularFileProperty
 
-    /** Stores the release version represented by the latest executable. */
+    /** Stores the release tag represented by the latest executable. */
     @get:LocalState
     public abstract val resolvedVersionFile: RegularFileProperty
 
@@ -121,7 +121,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
      */
     @TaskAction
     public fun install() {
-        val requestedVersion = version.orNull?.let(::validateVersion)
+        // Validate again because consumers can configure this public task input directly.
+        val requestedTag = version.orNull?.let(::validateVersion)?.ifEmpty { null }
         val configuredSha256 = sha256.orNull?.let(::normalizeSha256)
         val hostOperatingSystem = operatingSystem.get()
         val hostArchitecture = architecture.get()
@@ -166,7 +167,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             )
             return
         }
-        val resolvedVersion = if (requestedVersion == null) {
+        val resolvedTag = if (requestedTag == null) {
             logger.info("Resolving the latest Embed Code release from {}.", baseUrl)
             try {
                 resolveLatestVersion(baseUrl)
@@ -194,14 +195,14 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         } else {
             null
         }
-        if (resolvedVersion != null) {
-            logger.info("Resolved the latest Embed Code release as {}.", resolvedVersion)
+        if (resolvedTag != null) {
+            logger.info("Resolved the latest Embed Code release as {}.", resolvedTag)
         }
         if (
             (
-                requestedVersion != null ||
-                    resolvedVersion != null &&
-                    readResolvedVersion(versionFile) == resolvedVersion
+                requestedTag != null ||
+                    resolvedTag != null &&
+                    readResolvedVersion(versionFile) == resolvedTag
             ) &&
             isTrustedCachedInstallation(
                 destination,
@@ -214,23 +215,19 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         ) {
             logger.lifecycle(
                 "Reusing verified Embed Code {} from {}",
-                selectedVersionName(requestedVersion, resolvedVersion),
+                selectedVersionName(requestedTag, resolvedTag),
                 destination,
             )
             return
         }
-        val selectedReleaseTag = if (requestedVersion != null) {
-            releaseTagForVersion(requestedVersion)
-        } else {
-            resolvedVersion
-        }
+        val selectedReleaseTag = requestedTag ?: resolvedTag
         val source = releaseAsset(baseUrl, selectedReleaseTag, asset)
         val download = temporaryDir.toPath().resolve(asset)
         val preparedExecutable = temporaryDir.toPath().resolve(platform.executableName)
 
         try {
             Files.createDirectories(destination.parent)
-            val release = requestedVersion ?: "latest release"
+            val release = requestedTag ?: "latest release"
             logger.lifecycle("Downloading Embed Code {} from {}", release, source)
             download(source, download)
             val expectedAssetSha256 = resolveExpectedAssetSha256(
@@ -271,8 +268,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             writeResolvedVersion(assetChecksum, expectedAssetSha256)
             writeResolvedVersion(executableChecksum, preparedExecutableSha256)
             writeResolvedVersion(sourceIdentity, expectedSourceIdentity)
-            if (resolvedVersion != null) {
-                writeResolvedVersion(versionFile, resolvedVersion)
+            if (resolvedTag != null) {
+                writeResolvedVersion(versionFile, resolvedTag)
             }
             logger.info(
                 "Installed Embed Code {} at {}.",
@@ -330,6 +327,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
 
         /**
          * Normalizes [path] and verifies that it is below [installationDirectory].
+         *
+         * This is a lexical check because target files may not exist yet. Existing symlinks
+         * below the installation directory are not resolved.
          */
         fun requireInsideInstallationDirectory(
             path: Path,
@@ -345,8 +345,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             return normalizedPath
         }
 
-        fun selectedVersionName(requestedVersion: String?, resolvedVersion: String?): String =
-            requestedVersion ?: resolvedVersion ?: "latest release"
+        fun selectedVersionName(requestedTag: String?, resolvedTag: String?): String =
+            requestedTag ?: resolvedTag ?: "latest release"
 
         /**
          * Checks both the trusted release-asset digest and cached executable contents.
@@ -448,13 +448,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         }
 
         /**
-         * Returns the release tag corresponding to a user-configured [version].
-         */
-        fun releaseTagForVersion(version: String): String {
-            return if (version.startsWith("v")) version else "v$version"
-        }
-
-        /**
          * Downloads [source] into [destination], reporting HTTP failures clearly.
          */
         fun download(source: URI, destination: Path) {
@@ -525,7 +518,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         }
 
         /**
-         * Returns the recorded latest release version, if available.
+         * Returns the recorded latest release tag, if available.
          */
         fun readResolvedVersion(versionFile: Path): String? {
             return try {

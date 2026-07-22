@@ -87,17 +87,22 @@ Embedding instructions refer to these roots with `$model/` and
 
 By default, the plugin checks the latest Embed Code release before running a task.
 It reuses the executable in `build/embed-code/latest` while the release
-version remains unchanged and downloads a new executable only after a new
+tag remains unchanged and downloads a new executable only after a new
 release is published. When the release check fails, for example without
 network access, the plugin reuses the previously installed executable.
 
-To use a specific Embed Code application release, add its version to the extension:
+To use a specific Embed Code application release, set `version` to its exact release tag.
+The plugin uses this value verbatim and does not add a `v` prefix.
 
 ```kotlin
 embedCode {
-    version.set("1.2.4")
+    version.set("v1.2.4")
 }
 ```
+
+Omit `version`, or set it to an empty string, to use the latest release.
+Setting `version` to `"latest"` targets a release tag literally named `latest`;
+it is not an alias for the latest release.
 
 Before installing an executable, the plugin verifies the release asset's SHA-256
 digest from the GitHub Releases API. API requests are unauthenticated unless a

@@ -60,14 +60,13 @@ public class EmbedCodePlugin : Plugin<Project> {
         // The installed file name always tracks the host operating system.
         // Overriding the task's `operatingSystem` input changes asset selection only.
         val installedExecutableName = EmbedCodePlatform.installedExecutableName(operatingSystem)
-        val requestedVersion = extension.version.map(::validateVersion)
         val installationDirectory = project.layout.buildDirectory.dir("embed-code")
         val installTask = project.tasks.register(
             installTaskName,
             InstallEmbedCodeTask::class.java,
         ) { task ->
             task.description = "Installs the requested Embed Code executable"
-            task.version.set(requestedVersion)
+            task.version.set(extension.version)
             task.sha256.set(extension.sha256)
             task.githubToken.set(extension.githubToken)
             task.downloadBaseUrl.set(extension.downloadBaseUrl)
@@ -76,11 +75,16 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.offline.set(project.gradle.startParameter.isOffline)
             task.installationDirectory.set(installationDirectory)
             task.installationDirectory.disallowChanges()
+            val requestedTag = task.version.map(::validateVersion)
+            val installationSubdirectory = requestedTag.map { tag ->
+                if (tag.isEmpty()) "embed-code/latest" else "embed-code/versions/$tag"
+            }.orElse("embed-code/latest")
+            // Keep explicit tags separate so one named `latest` cannot alias the rolling cache.
             task.executableFile.set(
                 project.layout.buildDirectory.file(
-                    requestedVersion.map { version ->
-                        "embed-code/$version/$installedExecutableName"
-                    }.orElse("embed-code/latest/$installedExecutableName"),
+                    installationSubdirectory.map { directory ->
+                        "$directory/$installedExecutableName"
+                    },
                 ),
             )
             task.resolvedVersionFile.set(
@@ -88,23 +92,19 @@ public class EmbedCodePlugin : Plugin<Project> {
             )
             task.assetChecksumFile.set(
                 project.layout.buildDirectory.file(
-                    requestedVersion.map { version ->
-                        "embed-code/$version/asset.sha256"
-                    }.orElse("embed-code/latest/asset.sha256"),
+                    installationSubdirectory.map { directory -> "$directory/asset.sha256" },
                 ),
             )
             task.executableChecksumFile.set(
                 project.layout.buildDirectory.file(
-                    requestedVersion.map { version ->
-                        "embed-code/$version/executable.sha256"
-                    }.orElse("embed-code/latest/executable.sha256"),
+                    installationSubdirectory.map { directory ->
+                        "$directory/executable.sha256"
+                    },
                 ),
             )
             task.sourceIdentityFile.set(
                 project.layout.buildDirectory.file(
-                    requestedVersion.map { version ->
-                        "embed-code/$version/source.sha256"
-                    }.orElse("embed-code/latest/source.sha256"),
+                    installationSubdirectory.map { directory -> "$directory/source.sha256" },
                 ),
             )
             // Intentionally rerun and re-hash the cached executable before every execution.

@@ -45,7 +45,7 @@ public abstract class EmbedCodeExtension {
 
     private val configuredSourceNames = mutableSetOf<String>()
 
-    /** An optional release version, with the latest release used when absent. */
+    /** An optional release tag used verbatim; absent or empty selects the latest release. */
     public abstract val version: Property<String>
 
     /**
@@ -122,9 +122,9 @@ public abstract class EmbedCodeExtension {
     /**
      * The base URL of the Embed Code releases.
      *
-     * The plugin appends `/latest/download/<platform-asset>` when no version is
-     * configured, or `/download/v<version>/<platform-asset>` for an explicit
-     * version. This property primarily supports functional testing.
+     * The plugin appends `/latest/download/<platform-asset>` when [version] is
+     * absent or empty, or `/download/<release-tag>/<platform-asset>` for an
+     * explicit tag. This property primarily supports functional testing.
      */
     public abstract val downloadBaseUrl: Property<String>
 
