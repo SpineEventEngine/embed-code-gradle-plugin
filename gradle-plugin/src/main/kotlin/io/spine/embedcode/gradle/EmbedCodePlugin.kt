@@ -77,9 +77,12 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.installationDirectory.disallowChanges()
             val requestedTag = task.version.map(::validateVersion)
             val installationSubdirectory = requestedTag.map { tag ->
-                if (tag.isEmpty()) "embed-code/latest" else "embed-code/versions/$tag"
+                if (tag.isEmpty()) {
+                    "embed-code/latest"
+                } else {
+                    "embed-code/versions/${releaseTagCacheKey(tag)}"
+                }
             }.orElse("embed-code/latest")
-            // Keep explicit tags separate so one named `latest` cannot alias the rolling cache.
             task.executableFile.set(
                 project.layout.buildDirectory.file(
                     installationSubdirectory.map { directory ->
@@ -88,7 +91,14 @@ public class EmbedCodePlugin : Plugin<Project> {
                 ),
             )
             task.resolvedVersionFile.set(
-                project.layout.buildDirectory.file("embed-code/latest/version.txt"),
+                project.layout.buildDirectory.file(
+                    installationSubdirectory.map { directory -> "$directory/version.txt" },
+                ),
+            )
+            task.cachedAssetFile.set(
+                project.layout.buildDirectory.file(
+                    installationSubdirectory.map { directory -> "$directory/release-asset" },
+                ),
             )
             task.assetChecksumFile.set(
                 project.layout.buildDirectory.file(
@@ -107,7 +117,7 @@ public class EmbedCodePlugin : Plugin<Project> {
                     installationSubdirectory.map { directory -> "$directory/source.sha256" },
                 ),
             )
-            // Intentionally rerun and re-hash the cached executable before every execution.
+            // Intentionally rerun and revalidate the cached release asset before execution.
             task.outputs.upToDateWhen { false }
         }
 

@@ -33,8 +33,7 @@ private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
 /**
  * Trims and validates a user-configured Embed Code release tag.
  *
- * The tag becomes both a release URL segment and a cache-directory name,
- * so only characters that are safe in both locations are accepted.
+ * The tag becomes a release URL segment, so only URL-safe characters are accepted.
  * An empty tag selects the latest release.
  */
 internal fun validateVersion(value: String): String {
@@ -48,3 +47,9 @@ internal fun validateVersion(value: String): String {
     }
     return version
 }
+
+/**
+ * Returns a case-sensitive, filesystem-portable cache key for [releaseTag].
+ */
+internal fun releaseTagCacheKey(releaseTag: String): String =
+    sha256("embed-code-release-tag\u0000$releaseTag")

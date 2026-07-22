@@ -61,12 +61,20 @@ internal class ChecksumSpec {
         val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
 
         assertNotEquals(
-            releaseAssetIdentity(baseUrl, "embed-code-macos-x64.zip"),
-            releaseAssetIdentity(baseUrl, "embed-code-macos-arm64.zip"),
+            releaseAssetIdentity(baseUrl, "v1", "embed-code-macos-x64.zip"),
+            releaseAssetIdentity(baseUrl, "v1", "embed-code-macos-arm64.zip"),
         )
         assertNotEquals(
-            releaseAssetIdentity(baseUrl, "embed-code-linux"),
-            releaseAssetIdentity("https://releases.example.com/embed-code", "embed-code-linux"),
+            releaseAssetIdentity(baseUrl, "v1", "embed-code-linux"),
+            releaseAssetIdentity(
+                "https://releases.example.com/embed-code",
+                "v1",
+                "embed-code-linux",
+            ),
+        )
+        assertNotEquals(
+            releaseAssetIdentity(baseUrl, "v1", "embed-code-linux"),
+            releaseAssetIdentity(baseUrl, "V1", "embed-code-linux"),
         )
     }
 

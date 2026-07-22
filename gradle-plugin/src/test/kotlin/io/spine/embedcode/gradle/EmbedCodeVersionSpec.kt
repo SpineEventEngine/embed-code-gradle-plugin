@@ -28,11 +28,13 @@ package io.spine.embedcode.gradle
 
 import org.gradle.api.InvalidUserDataException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-@DisplayName("`validateVersion` should")
+@DisplayName("Embed Code release-tag support should")
 internal class EmbedCodeVersionSpec {
 
     @Test
@@ -42,6 +44,8 @@ internal class EmbedCodeVersionSpec {
             "1.0.0-beta+build",
             "2.0_rc1",
             "latest",
+            "CON",
+            "release.",
         )
 
         tags.forEach { tag ->
@@ -63,5 +67,18 @@ internal class EmbedCodeVersionSpec {
     @Test
     fun `treat an empty release tag as latest`() {
         assertEquals("", validateVersion("  "))
+    }
+
+    @Test
+    fun `derive distinct portable cache keys from exact tags`() {
+        val lowercaseKey = releaseTagCacheKey("v1")
+        val uppercaseKey = releaseTagCacheKey("V1")
+
+        assertNotEquals(lowercaseKey, uppercaseKey)
+        listOf(lowercaseKey, uppercaseKey, releaseTagCacheKey("CON"), releaseTagCacheKey("v1.")).forEach {
+            key ->
+            assertEquals(64, key.length)
+            assertTrue(key.all { character -> character in '0'..'9' || character in 'a'..'f' })
+        }
     }
 }

@@ -87,12 +87,12 @@ Embedding instructions refer to these roots with `$model/` and
 
 By default, the plugin checks the latest Embed Code release before running a task.
 It reuses the executable in `build/embed-code/latest` while the release
-tag remains unchanged and downloads a new executable only after a new
-release is published. When the release check fails, for example without
-network access, the plugin reuses the previously installed executable.
+tag remains unchanged and downloads a new release asset only after a new
+release is published. If the latest-release check fails, the plugin reuses the
+cached asset only when `sha256` supplies an independent trust anchor.
 
-To use a specific Embed Code application release, set `version` to its exact release tag.
-The plugin uses this value verbatim and does not add a `v` prefix.
+To use a specific Embed Code application release, add its exact release tag to
+the extension:
 
 ```kotlin
 embedCode {
@@ -100,9 +100,7 @@ embedCode {
 }
 ```
 
-Omit `version`, or set it to an empty string, to use the latest release.
-Setting `version` to `"latest"` targets a release tag literally named `latest`;
-it is not an alias for the latest release.
+The tag is used verbatim. In particular, the plugin does not add a `v` prefix.
 
 Before installing an executable, the plugin verifies the release asset's SHA-256
 digest from the GitHub Releases API. Only these metadata requests use the
@@ -120,9 +118,15 @@ or pin both `version` and `sha256`. Pairing the digest with a fixed version keep
 the pin valid when GitHub publishes a newer release.
 
 The digest applies to the downloaded release asset. For macOS, this means the
-ZIP archive rather than the extracted executable. Verified cache metadata is
-stored under `build/embed-code`; offline mode reuses the executable only when
-its current digest, release source, and platform asset still match that metadata.
+ZIP archive rather than the extracted executable. The verified release asset is
+retained under `build/embed-code`, and the executable is recreated from it on
+every reuse. Local checksum sidecars are diagnostic only and are not trusted to
+authorize executable contents.
+
+Offline reuse requires `sha256` because a local cache cannot authenticate its
+own metadata. Explicit release tags use SHA-256-derived cache directory names,
+which preserve case-sensitive tag identity on Windows and case-insensitive file
+systems.
 
 Check that documentation is up to date:
 
