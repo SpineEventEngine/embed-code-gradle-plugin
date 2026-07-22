@@ -57,9 +57,10 @@ import java.util.zip.ZipInputStream
 /**
  * Downloads and prepares the Embed Code executable selected for the host.
  *
- * Cached release assets are reused only after their bytes match a trusted
- * SHA-256 digest. The executable is recreated from the verified asset on every
- * reuse so local cache metadata cannot authorize modified code.
+ * Release assets are authenticated before their first installation. A previously
+ * verified local installation is reused without another network request or digest
+ * calculation. If that installation is missing or its metadata no longer matches
+ * the configured release source, the retained asset is authenticated again before use.
  */
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
@@ -110,15 +111,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:LocalState
     public abstract val cachedAssetFile: RegularFileProperty
 
-    /** Records the verified digest of the downloaded release asset for diagnostics. */
+    /** Records the verified digest of the downloaded release asset. */
     @get:LocalState
     public abstract val assetChecksumFile: RegularFileProperty
 
-    /** Records the digest of the prepared executable for diagnostics. */
+    /** Records that the prepared executable came from a verified release asset. */
     @get:LocalState
     public abstract val executableChecksumFile: RegularFileProperty
 
-    /** Records the selected release source and asset identity for diagnostics. */
+    /** Records the selected release source and asset identity. */
     @get:LocalState
     public abstract val sourceIdentityFile: RegularFileProperty
 
@@ -168,14 +169,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             installationRoot,
         )
         prepareInstallationDirectory(installationRoot)
-        listOf(
-            destination,
-            cachedAsset,
-            versionFile,
-            assetChecksum,
-            executableChecksum,
-            sourceIdentity,
-        ).forEach { path -> requireNoSymbolicLinks(path, installationRoot) }
+        requireNoSymbolicLinks(destination, installationRoot)
 
         if (offline.get()) {
             reuseOfflineInstallation(
@@ -194,20 +188,50 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             )
             return
         }
+        val cachedTag = readStoredValue(versionFile, installationRoot)
+        if (isPreviouslyVerifiedInstallation(
+                destination,
+                versionFile,
+                assetChecksum,
+                executableChecksum,
+                sourceIdentity,
+                requestedTag,
+                baseUrl,
+                asset,
+                configuredSha256,
+                installationRoot,
+            )
+        ) {
+            logger.lifecycle(
+                "Reusing previously verified Embed Code {} from {}",
+                selectedVersionName(requestedTag, cachedTag),
+                destination,
+            )
+            return
+        }
         val resolvedTag = if (requestedTag == null) {
             logger.info("Resolving the latest Embed Code release from {}.", baseUrl)
             try {
                 resolveLatestVersion(baseUrl)
             } catch (exception: GradleException) {
+                if (isReusableInstalledExecutable(destination, installationRoot)) {
+                    logger.warn(
+                        "Could not check the latest Embed Code release ({}). " +
+                            "Reusing the installed executable from `{}`.",
+                        exception.message,
+                        destination,
+                    )
+                    return
+                }
                 val expectedAssetSha256 = configuredSha256 ?: throw GradleException(
-                    "${exception.message} The cached asset cannot be authenticated " +
-                        "without a configured digest. Configure `embedCode.sha256` " +
-                        "to allow safe fallback reuse.",
+                    "${exception.message} No installed executable is available for reuse, " +
+                        "and the cached asset cannot be authenticated without a configured " +
+                        "digest. Configure `embedCode.sha256` to restore it safely.",
                     exception,
                 )
                 val cachedTag = readStoredValue(versionFile, installationRoot)
                 val expectedSourceIdentity = releaseAssetIdentity(baseUrl, cachedTag, asset)
-                val reused = restoreCachedInstallation(
+                val reused = installFromVerifiedAsset(
                     platform,
                     destination,
                     cachedAsset,
@@ -245,7 +269,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             asset,
         )
         val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedReleaseTag, asset)
-        if (restoreCachedInstallation(
+        if (installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
@@ -292,7 +316,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             } else {
                 writeStoredValue(versionFile, selectedReleaseTag, installationRoot)
             }
-            val installed = restoreCachedInstallation(
+            val installed = installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
@@ -339,9 +363,17 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         configuredSha256: String?,
         installationRoot: Path,
     ) {
+        if (isReusableInstalledExecutable(destination, installationRoot)) {
+            logger.lifecycle(
+                "Reusing installed Embed Code executable from {} in offline mode",
+                destination,
+            )
+            return
+        }
         val expectedAssetSha256 = configuredSha256 ?: throw GradleException(
-            "Cannot securely reuse Embed Code in offline mode without a trusted digest. " +
-                "Configure `embedCode.sha256` for the selected release asset.",
+            "Cannot install Embed Code in offline mode because no executable exists at " +
+                "`$destination`, and the cached asset cannot be authenticated without a " +
+                "trusted digest. Configure `embedCode.sha256` to restore it safely.",
         )
         val cachedTag = readStoredValue(versionFile, installationRoot)
         val selectedTag = requestedTag ?: cachedTag
@@ -352,7 +384,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             )
         }
         val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedTag, asset)
-        if (!restoreCachedInstallation(
+        if (!installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
@@ -375,6 +407,66 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             "Reusing verified cached Embed Code executable from {} in offline mode",
             destination,
         )
+    }
+
+    /**
+     * Returns whether an installed executable can be reused without remote verification.
+     *
+     * Offline operation deliberately trusts a regular file placed at the configured output
+     * path. The path itself remains subject to the installation-root and link checks.
+     */
+    private fun isReusableInstalledExecutable(
+        destination: Path,
+        installationRoot: Path,
+    ): Boolean {
+        requireNoSymbolicLinks(destination, installationRoot)
+        return Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)
+    }
+
+    /**
+     * Returns whether the installed executable was produced by a successful verified install.
+     *
+     * This deliberately treats the local installation and its metadata as trusted after the
+     * initial asset verification. It validates cache identity, but does not rehash local files.
+     */
+    private fun isPreviouslyVerifiedInstallation(
+        destination: Path,
+        versionFile: Path,
+        assetChecksum: Path,
+        executableChecksum: Path,
+        sourceIdentity: Path,
+        requestedTag: String?,
+        baseUrl: String,
+        asset: String,
+        configuredSha256: String?,
+        installationRoot: Path,
+    ): Boolean {
+        if (!isReusableInstalledExecutable(destination, installationRoot)) {
+            return false
+        }
+        val cachedTag = readStoredValue(versionFile, installationRoot)
+        if (requestedTag != null && cachedTag != requestedTag) {
+            return false
+        }
+        val selectedTag = requestedTag ?: cachedTag
+        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedTag, asset)
+        if (readStoredValue(sourceIdentity, installationRoot) != expectedSourceIdentity) {
+            return false
+        }
+        val storedAssetSha256 = readStoredSha256(assetChecksum, installationRoot)
+            ?: return false
+        if (configuredSha256 != null && storedAssetSha256 != configuredSha256) {
+            return false
+        }
+        return readStoredSha256(executableChecksum, installationRoot) != null
+    }
+
+    /**
+     * Reads a valid SHA-256 cache marker, or returns `null` when it is absent or malformed.
+     */
+    private fun readStoredSha256(file: Path, installationRoot: Path): String? {
+        val value = readStoredValue(file, installationRoot) ?: return null
+        return runCatching { normalizeSha256(value) }.getOrNull()
     }
 
     /**
@@ -402,7 +494,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     /**
      * Authenticates the cached release asset and recreates the installed executable from it.
      */
-    private fun restoreCachedInstallation(
+    private fun installFromVerifiedAsset(
         platform: EmbedCodePlatform,
         destination: Path,
         cachedAsset: Path,
@@ -834,6 +926,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                     Files.newOutputStream(
                         destination,
                         StandardOpenOption.TRUNCATE_EXISTING,
+                        LinkOption.NOFOLLOW_LINKS,
                     ).use { output -> copy(input, output) }
                 }
             }

@@ -75,8 +75,12 @@ internal class EmbedCodeVersionSpec {
         val uppercaseKey = releaseTagCacheKey("V1")
 
         assertNotEquals(lowercaseKey, uppercaseKey)
-        listOf(lowercaseKey, uppercaseKey, releaseTagCacheKey("CON"), releaseTagCacheKey("v1.")).forEach {
-            key ->
+        listOf(
+            lowercaseKey,
+            uppercaseKey,
+            releaseTagCacheKey("CON"),
+            releaseTagCacheKey("v1."),
+        ).forEach { key ->
             assertEquals(64, key.length)
             assertTrue(key.all { character -> character in '0'..'9' || character in 'a'..'f' })
         }

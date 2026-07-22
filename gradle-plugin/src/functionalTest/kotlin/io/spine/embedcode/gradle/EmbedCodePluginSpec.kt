@@ -134,7 +134,7 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `reuse latest executable when the release tag is unchanged`() {
+    fun `reuse a verified latest executable without another release request`() {
         val latestTag = AtomicReference(TEST_RELEASE_TAG)
         val versionChecks = AtomicInteger()
         val downloads = AtomicInteger()
@@ -143,12 +143,17 @@ internal class EmbedCodePluginSpec {
             writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
 
             runner(":installEmbedCode").build()
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                configureSha256 = false,
+            )
             val result = runner(":installEmbedCode").build()
 
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-            versionChecks.get() shouldBe 2
+            versionChecks.get() shouldBe 1
             downloads.get() shouldBe 1
-            result.output shouldContain "Reusing verified Embed Code v$TEST_RELEASE_VERSION"
+            result.output shouldContain
+                "Reusing previously verified Embed Code v$TEST_RELEASE_VERSION"
         } finally {
             server.stop(0)
         }
@@ -207,7 +212,7 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `download latest executable when the release tag changes`() {
+    fun `download latest executable when the configured digest changes`() {
         val nextVersion = "1.2.5-test"
         createFakeRelease(releaseDirectory, nextVersion)
         val latestTag = AtomicReference(TEST_RELEASE_TAG)
@@ -247,11 +252,29 @@ internal class EmbedCodePluginSpec {
         } finally {
             server.stop(0)
         }
+        writeBuildFile(
+            downloadBaseUrl = server.releaseBaseUrl,
+            configureSha256 = false,
+        )
 
         val result = runner(":installEmbedCode", "--offline").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing verified cached Embed Code executable"
+        result.output shouldContain "Reusing installed Embed Code executable"
+    }
+
+    @Test
+    fun `reuse a manually installed executable offline without cache metadata`() {
+        writeBuildFile(configureSha256 = false)
+        val executable = installedExecutable()
+        Files.createDirectories(executable.parent)
+        Files.writeString(executable, "user-provided executable")
+
+        val result = runner(":installEmbedCode", "--offline").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(executable) shouldBe "user-provided executable"
+        result.output shouldContain "Reusing installed Embed Code executable"
     }
 
     @Test
@@ -267,6 +290,11 @@ internal class EmbedCodePluginSpec {
         writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
         try {
             runner(":installEmbedCode").build()
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                configureSha256 = false,
+            )
+            Files.delete(installationDirectory().resolve("source.sha256"))
             latestStatus.set(HTTP_UNAVAILABLE)
 
             val result = runner(":installEmbedCode").build()
@@ -276,14 +304,14 @@ internal class EmbedCodePluginSpec {
             downloads.get() shouldBe 1
             result.output shouldContain "Could not check the latest Embed Code release"
             result.output shouldContain "HTTP 503 from ${server.releaseBaseUrl}/latest"
-            result.output shouldContain "Reusing the cached executable"
+            result.output shouldContain "Reusing the installed executable"
         } finally {
             server.stop(0)
         }
     }
 
     @Test
-    fun `require a configured digest when the latest release check fails`() {
+    fun `require a configured digest to restore a cached asset after latest check failure`() {
         val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
         val downloads = AtomicInteger()
         val server = startReleaseServer(
@@ -293,6 +321,7 @@ internal class EmbedCodePluginSpec {
         try {
             writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
             runner(":installEmbedCode").build()
+            Files.delete(installedExecutable())
 
             writeBuildFile(
                 downloadBaseUrl = server.releaseBaseUrl,
@@ -302,9 +331,35 @@ internal class EmbedCodePluginSpec {
             val result = runner(":installEmbedCode").buildAndFail()
 
             result.output shouldContain
-                "The cached asset cannot be authenticated without a configured digest."
+                "No installed executable is available for reuse, and the cached asset " +
+                "cannot be authenticated without a configured digest."
             result.output shouldContain "Configure `embedCode.sha256`"
             downloads.get() shouldBe 1
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `restore a verified cached asset after latest release check failure`() {
+        val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(
+            downloads = downloads,
+            latestStatus = latestStatus,
+        )
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+            Files.delete(installedExecutable())
+            latestStatus.set(HTTP_UNAVAILABLE)
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            Files.exists(installedExecutable()) shouldBe true
+            downloads.get() shouldBe 1
+            result.output shouldContain "Reusing the cached executable"
         } finally {
             server.stop(0)
         }
@@ -363,34 +418,27 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `restore a modified cached executable without trusting sidecar digests`() {
+    fun `trust a local executable after its verified installation`() {
         runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.installedExecutableName(
-            System.getProperty("os.name"),
-        )
-        val installation = projectDirectory.resolve("build/embed-code/latest")
-        val executable = installation.resolve(executableName)
-        val verifiedExecutable = Files.readAllBytes(executable)
+        val executable = installedExecutable()
         Files.writeString(executable, "modified after verification")
-        Files.writeString(installation.resolve("asset.sha256"), "1".repeat(64))
-        Files.writeString(installation.resolve("executable.sha256"), "2".repeat(64))
-        Files.writeString(installation.resolve("source.sha256"), "3".repeat(64))
 
-        val result = runner(":installEmbedCode", "--offline").build()
+        val result = runner(":installEmbedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readAllBytes(executable).contentEquals(verifiedExecutable) shouldBe true
-        result.output shouldContain "Reusing verified cached Embed Code executable"
+        Files.readString(executable) shouldBe "modified after verification"
+        result.output shouldContain "Reusing previously verified Embed Code"
     }
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `restore execute permission from the verified cached asset`() {
+    fun `restore execute permission when verified cache metadata is missing`() {
         runner(":installEmbedCode").build()
         val executable = installedExecutable()
         executable.toFile().setExecutable(false, false) shouldBe true
+        Files.delete(installationDirectory().resolve("source.sha256"))
 
-        val result = runner(":installEmbedCode", "--offline").build()
+        val result = runner(":installEmbedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.isExecutable(executable) shouldBe true
@@ -448,6 +496,7 @@ internal class EmbedCodePluginSpec {
         val cachedAsset = installation.resolve("release-asset")
         Files.writeString(cachedAsset, "untrusted replacement")
         Files.writeString(installation.resolve("asset.sha256"), sha256(cachedAsset))
+        Files.delete(installedExecutable())
 
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
@@ -465,6 +514,7 @@ internal class EmbedCodePluginSpec {
                 installationDirectory().resolve("release-asset"),
                 "untrusted replacement",
             )
+            Files.delete(installedExecutable())
 
             val result = runner(":installEmbedCode").build()
 
@@ -476,15 +526,28 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `require a configured digest for offline cache reuse`() {
+    fun `require a configured digest to restore a missing executable offline`() {
         runner(":installEmbedCode").build()
+        Files.delete(installedExecutable())
         writeBuildFile(configureSha256 = false)
 
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
         result.output shouldContain
-            "Cannot securely reuse Embed Code in offline mode without a trusted digest."
+            "no executable exists at"
         result.output shouldContain "Configure `embedCode.sha256`"
+    }
+
+    @Test
+    fun `restore a missing executable from a verified cached asset offline`() {
+        runner(":installEmbedCode").build()
+        Files.delete(installedExecutable())
+
+        val result = runner(":installEmbedCode", "--offline").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.exists(installedExecutable()) shouldBe true
+        result.output shouldContain "Reusing verified cached Embed Code executable"
     }
 
     @Test
@@ -753,6 +816,7 @@ internal class EmbedCodePluginSpec {
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reject a symbolic-link cached asset`() {
         runner(":installEmbedCode").build()
+        Files.delete(installedExecutable())
         val outsideAsset = projectDirectory.resolve("outside-asset")
         Files.writeString(outsideAsset, "unchanged")
         val cachedAsset = installationDirectory().resolve("release-asset")
@@ -887,7 +951,7 @@ internal class EmbedCodePluginSpec {
         val result = runner(":embedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing verified Embed Code $TEST_RELEASE_TAG"
+        result.output shouldContain "Reusing previously verified Embed Code $TEST_RELEASE_TAG"
         result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "embed"
     }

@@ -85,11 +85,15 @@ embedCode {
 Embedding instructions refer to these roots with `$model/` and
 `$database/`. `codePath` and `namedSource(...)` are mutually exclusive.
 
-By default, the plugin checks the latest Embed Code release before running a task.
-It reuses the executable in `build/embed-code/latest` while the release
-tag remains unchanged and downloads a new release asset only after a new
-release is published. If the latest-release check fails, the plugin reuses the
-cached asset only when `sha256` supplies an independent trust anchor.
+By default, the plugin resolves and verifies the latest Embed Code release on
+the first installation. It then reuses the executable in
+`build/embed-code/latest` without another release or checksum-metadata request.
+Run `clean` or remove that directory to check for a newer release. Changing the
+configured version, release source, platform, or `sha256` to a different digest
+also invalidates the matching cached installation. If a latest-release check
+fails after invalidation, the plugin reuses an existing installed executable. If
+that executable is missing, the plugin can restore the retained release asset
+only when `sha256` supplies a trust anchor.
 
 To use a specific Embed Code application release, add its exact release tag to
 the extension:
@@ -100,12 +104,7 @@ embedCode {
 }
 ```
 
-The tag is used verbatim. In particular, the plugin does not add a `v` prefix.
-
-Before installing an executable, the plugin verifies the release asset's SHA-256
-digest from the GitHub Releases API. Only these metadata requests use the
-optional token; release asset downloads remain unauthenticated. API requests are
-unauthenticated unless a token provider is configured explicitly:
+API requests are unauthenticated unless a token provider is configured explicitly:
 
 ```kotlin
 embedCode {
@@ -113,18 +112,22 @@ embedCode {
 }
 ```
 
-For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit,
-or pin both `version` and `sha256`. Pairing the digest with a fixed version keeps
-the pin valid when GitHub publishes a newer release.
+For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit
+during the initial resolution. Without `sha256`, the first online installation
+resolves the asset digest from GitHub release metadata. Pin both `version` and
+`sha256` to keep that initial installation tied to an immutable release.
 
 The digest applies to the downloaded release asset. For macOS, this means the
 ZIP archive rather than the extracted executable. The verified release asset is
-retained under `build/embed-code`, and the executable is recreated from it on
-every reuse. Local checksum sidecars are diagnostic only and are not trusted to
-authorize executable contents.
+retained under `build/embed-code`. Local metadata records that the installed
+executable came from a verified asset. Later builds trust this local state and
+do not rehash the executable or retained asset. If local cache contents may have
+been changed, remove the installation directory to force verification again.
 
-Offline reuse requires `sha256` because a local cache cannot authenticate its
-own metadata. Explicit release tags use SHA-256-derived cache directory names,
+Offline mode reuses an existing regular executable from the selected cache
+directory without remote verification and without requiring `sha256`. If the
+executable is missing, `sha256` is required to authenticate and restore the
+retained asset. Explicit release tags use SHA-256-derived cache directory names,
 which preserve case-sensitive tag identity on Windows and case-insensitive file
 systems.
 
