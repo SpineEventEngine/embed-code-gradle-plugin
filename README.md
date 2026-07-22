@@ -27,6 +27,8 @@ The plugin is written in Kotlin, but uses the Kotlin runtime supplied by Gradle.
 This section describes how to use the plugin. For information about the Embed
 Code application itself, see its [documentation][embed-code].
 
+### Configuration
+
 Add the following configuration to the project's `build.gradle.kts`:
 
 ```kotlin
@@ -81,55 +83,9 @@ embedCode {
     docsPath.set(layout.projectDirectory)
 }
 ```
+`codePath` and `namedSource(...)` are mutually exclusive.
 
-Embedding instructions refer to these roots with `$model/` and
-`$database/`. `codePath` and `namedSource(...)` are mutually exclusive.
-
-By default, the plugin resolves and verifies the latest Embed Code release on
-the first installation. It then reuses the executable in
-`build/embed-code/latest` without another release or checksum-metadata request.
-Run `clean` or remove that directory to check for a newer release. Changing the
-configured version, release source, platform, or `sha256` to a different digest
-also invalidates the matching cached installation. If a latest-release check
-fails after invalidation, the plugin reuses an existing installed executable. If
-that executable is missing, the plugin can restore the retained release asset
-only when `sha256` supplies a trust anchor.
-
-To use a specific Embed Code application release, add its exact release tag to
-the extension:
-
-```kotlin
-embedCode {
-    version.set("v1.2.4")
-}
-```
-
-API requests are unauthenticated unless a token provider is configured explicitly:
-
-```kotlin
-embedCode {
-    githubToken.set(providers.environmentVariable("EMBED_CODE_GITHUB_TOKEN"))
-}
-```
-
-For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit
-during the initial resolution. Without `sha256`, the first online installation
-resolves the asset digest from GitHub release metadata. Pin both `version` and
-`sha256` to keep that initial installation tied to an immutable release.
-
-The digest applies to the downloaded release asset. For macOS, this means the
-ZIP archive rather than the extracted executable. The verified release asset is
-retained under `build/embed-code`. Local metadata records that the installed
-executable came from a verified asset. Later builds trust this local state and
-do not rehash the executable or retained asset. If local cache contents may have
-been changed, remove the installation directory to force verification again.
-
-Offline mode reuses an existing regular executable from the selected cache
-directory without remote verification and without requiring `sha256`. If the
-executable is missing, `sha256` is required to authenticate and restore the
-retained asset. Explicit release tags use SHA-256-derived cache directory names,
-which preserve case-sensitive tag identity on Windows and case-insensitive file
-systems.
+### Execution
 
 Check that documentation is up to date:
 
@@ -147,6 +103,37 @@ The plugin prefers the `checkEmbedding` and `embedCode` task names. If a name
 is already occupied when the plugin is applied, underscores are prepended until
 an available name is found, for example `_embedCode` or `__embedCode`.
 The fallback cannot account for a conflicting task registered later.
+
+### Version
+
+By default, the plugin resolves and verifies the latest Embed Code release on
+the first installation. It then reuses the executable in
+`build/embed-code/latest` without another release or checksum-metadata request.
+Run `clean` or remove that directory to check for a newer release. Changing the
+configured version.
+
+To use a specific Embed Code application release, add its exact release tag to the extension:
+
+```kotlin
+embedCode {
+    version.set("v1.2.4")
+}
+```
+
+### GitHub Authorization
+
+API requests are unauthenticated unless a token provider is configured explicitly:
+
+```kotlin
+embedCode {
+    githubToken.set(providers.environmentVariable("EMBED_CODE_GITHUB_TOKEN"))
+}
+```
+
+For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit
+during the initial resolution. Without `sha256`, the first online installation
+resolves the asset digest from GitHub release metadata. Pin both `version` and
+`sha256` to keep that initial installation tied to an immutable release.
 
 ## Development
 
