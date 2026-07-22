@@ -42,6 +42,7 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipEntry
@@ -145,10 +146,38 @@ internal class EmbedCodePluginSpec {
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
             versionChecks.get() shouldBe 2
             downloads.get() shouldBe 1
-            result.output shouldContain "Reusing Embed Code v$TEST_RELEASE_VERSION"
+            result.output shouldContain "Reusing verified Embed Code v$TEST_RELEASE_VERSION"
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun `ignore an ambient GitHub token unless explicitly configured`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named("installEmbedCode") {
+                doFirst {
+                    val token = javaClass.getMethod("getGithubToken").invoke(this)
+                        as org.gradle.api.provider.Property<*>
+                    check(!token.isPresent) {
+                        "The plugin must not use GITHUB_TOKEN implicitly."
+                    }
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+        val environment = System.getenv().toMutableMap()
+        environment["GITHUB_TOKEN"] = "ambient-token"
+
+        val result = runner(":installEmbedCode")
+            .withEnvironment(environment)
+            .build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
     @Test
@@ -184,10 +213,17 @@ internal class EmbedCodePluginSpec {
         val downloads = AtomicInteger()
         val server = startReleaseServer(latestTag, versionChecks, downloads)
         try {
-            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
+            )
             runner(":installEmbedCode").build()
 
             latestTag.set("v$nextVersion")
+            writeBuildFile(
+                downloadBaseUrl = server.releaseBaseUrl,
+                sha256 = releaseAssetSha256(version = nextVersion),
+            )
             runner(":installEmbedCode").build()
 
             versionChecks.get() shouldBe 2
@@ -218,7 +254,7 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing cached Embed Code executable"
+        result.output shouldContain "Reusing verified cached Embed Code executable"
     }
 
     @Test
@@ -260,8 +296,55 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
         result.output shouldContain
-            "Cannot install the latest Embed Code release in offline mode because " +
+            "Cannot install Embed Code in offline mode because " +
             "no cached executable exists"
+    }
+
+    @Test
+    fun `keep explicit versions offline when no verified executable is cached`() {
+        writeBuildFile(version = TEST_RELEASE_VERSION)
+
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
+        result.output shouldContain "Cannot install Embed Code in offline mode"
+        result.output shouldNotContain "Downloading Embed Code"
+    }
+
+    @Test
+    fun `reject a release asset whose SHA-256 digest does not match`() {
+        writeBuildFile(sha256 = "0".repeat(64))
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain "SHA-256 verification failed for Embed Code asset"
+    }
+
+    @Test
+    fun `reject a modified cached executable in offline mode`() {
+        runner(":installEmbedCode").build()
+        val executableName = EmbedCodePlatform.installedExecutableName(
+            System.getProperty("os.name"),
+        )
+        Files.writeString(
+            projectDirectory.resolve("build/embed-code/latest/$executableName"),
+            "modified after verification",
+        )
+
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
+        result.output shouldContain "SHA-256 integrity metadata is missing or does not match"
+    }
+
+    @Test
+    fun `accept an explicitly pinned release asset`() {
+        writeBuildFile(
+            version = TEST_RELEASE_VERSION,
+            sha256 = releaseAssetSha256(version = TEST_RELEASE_VERSION),
+        )
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
     @Test
@@ -360,7 +443,8 @@ internal class EmbedCodePluginSpec {
 
         val result = runner(":embedCode").build()
 
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.UP_TO_DATE
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "Reusing verified Embed Code $TEST_RELEASE_VERSION"
         result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(projectDirectory.resolve("mode.txt")).trim() shouldBe "embed"
     }
@@ -538,8 +622,10 @@ internal class EmbedCodePluginSpec {
     private fun writeBuildFile(
         version: String? = null,
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
+        sha256: String? = null,
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
+        val configuredSha256 = sha256 ?: releaseAssetSha256(version = version)
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
             """
@@ -549,6 +635,7 @@ internal class EmbedCodePluginSpec {
 
             embedCode {
                 $versionConfiguration
+                sha256.set("$configuredSha256")
                 downloadBaseUrl.set("$downloadBaseUrl")
                 codePath.set(layout.projectDirectory.dir("code"))
                 docsPath.set(layout.projectDirectory.dir("docs"))
@@ -591,6 +678,7 @@ internal class EmbedCodePluginSpec {
 
             embedCode {
                 downloadBaseUrl.set("$baseUrl")
+                sha256.set("${releaseAssetSha256()}")
                 $directSource
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
@@ -621,6 +709,7 @@ internal class EmbedCodePluginSpec {
             executable,
             """
             #!/bin/sh
+            # release-marker: $version
             : > arguments.txt
             for argument in "${'$'}@"; do
               printf '%s\n' "${'$'}argument" >> arguments.txt
@@ -643,11 +732,37 @@ internal class EmbedCodePluginSpec {
         } else {
             Files.copy(executable, asset)
         }
+        val latestAsset = latestDirectory.resolve(platform.assetName)
         Files.copy(
             asset,
-            latestDirectory.resolve(platform.assetName),
+            latestAsset,
             StandardCopyOption.REPLACE_EXISTING,
         )
+    }
+
+    /**
+     * Returns the digest of a fake release asset.
+     */
+    private fun releaseAssetSha256(
+        root: Path = releaseDirectory,
+        version: String? = null,
+    ): String {
+        val platform = EmbedCodePlatform.detect(
+            System.getProperty("os.name"),
+            System.getProperty("os.arch"),
+        )
+        val asset = if (version == null) {
+            root.resolve("latest/download/${platform.assetName}")
+        } else {
+            val normalizedVersion = version.trim()
+            val tag = if (normalizedVersion.startsWith('v')) {
+                normalizedVersion
+            } else {
+                "v$normalizedVersion"
+            }
+            root.resolve("download/$tag/${platform.assetName}")
+        }
+        return sha256(asset)
     }
 
     /**
@@ -673,8 +788,8 @@ internal class EmbedCodePluginSpec {
             exchange.close()
         }
         server.createContext("/releases/download/") { exchange ->
-            downloads.incrementAndGet()
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
+            downloads.incrementAndGet()
             val asset = releaseDirectory.resolve("download").resolve(relativePath).normalize()
             if (!asset.startsWith(releaseDirectory.resolve("download")) || !Files.isRegularFile(asset)) {
                 exchange.sendResponseHeaders(404, -1)

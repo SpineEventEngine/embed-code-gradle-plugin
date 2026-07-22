@@ -48,6 +48,24 @@ public abstract class EmbedCodeExtension {
     /** An optional release version, with the latest release used when absent. */
     public abstract val version: Property<String>
 
+    /**
+     * An optional SHA-256 digest of the configured release asset.
+     *
+     * The plugin resolves this digest automatically for releases hosted on
+     * `github.com`. Configure this property together with [version] to pin a
+     * release asset explicitly.
+     */
+    public abstract val sha256: Property<String>
+
+    /**
+     * An optional GitHub token used to read release checksum metadata.
+     *
+     * Configure this property explicitly when authenticated GitHub API access
+     * is intended. The plugin does not read a token from the environment by
+     * default.
+     */
+    public abstract val githubToken: Property<String>
+
     /** The root directory containing source files used by embedding instructions. */
     public abstract val codePath: DirectoryProperty
 
@@ -107,8 +125,7 @@ public abstract class EmbedCodeExtension {
      *
      * The plugin appends `/latest/download/<platform-asset>` when no version is
      * configured, or `/download/v<version>/<platform-asset>` for an explicit
-     * version. This property primarily supports release mirrors and functional
-     * testing.
+     * version. This property primarily supports functional testing.
      */
     public abstract val downloadBaseUrl: Property<String>
 
