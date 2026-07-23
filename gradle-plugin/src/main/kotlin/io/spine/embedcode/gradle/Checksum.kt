@@ -30,9 +30,12 @@ import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import java.net.URI
 import java.net.URLEncoder
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -43,7 +46,12 @@ private const val SHA256_LENGTH = 64
  */
 internal fun sha256(file: Path): String {
     val digest = MessageDigest.getInstance("SHA-256")
-    Files.newInputStream(file).use { input ->
+    Files.newByteChannel(
+        file,
+        StandardOpenOption.READ,
+        LinkOption.NOFOLLOW_LINKS,
+    ).use { channel ->
+        val input = Channels.newInputStream(channel)
         val buffer = ByteArray(8_192)
         var count = input.read(buffer)
         while (count >= 0) {
@@ -64,10 +72,13 @@ internal fun sha256(value: String): String {
 }
 
 /**
- * Returns the cache identity for [releaseBaseUrl] and [assetName].
+ * Returns the cache identity for [releaseBaseUrl], [releaseTag], and [assetName].
  */
-internal fun releaseAssetIdentity(releaseBaseUrl: String, assetName: String): String =
-    sha256("$releaseBaseUrl\u0000$assetName")
+internal fun releaseAssetIdentity(
+    releaseBaseUrl: String,
+    releaseTag: String?,
+    assetName: String,
+): String = sha256("$releaseBaseUrl\u0000${releaseTag.orEmpty()}\u0000$assetName")
 
 /**
  * Validates and normalizes a SHA-256 [value].

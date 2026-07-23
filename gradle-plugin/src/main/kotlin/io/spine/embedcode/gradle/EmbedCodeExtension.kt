@@ -49,8 +49,8 @@ public abstract class EmbedCodeExtension {
      * An optional release tag used verbatim; absent or empty selects the latest release.
      *
      * Tags must start with an ASCII letter or digit and may then contain only letters,
-     * digits, dots, hyphens, underscores, plus signs, or tildes. Hierarchical tags are
-     * unsupported because `/` is excluded to keep cache paths contained.
+     * digits, dots, hyphens, underscores, plus signs, or tildes.
+     * Tags containing `/` are unsupported because the tag is used as a release URL segment.
      */
     public abstract val version: Property<String>
 
