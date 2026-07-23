@@ -107,7 +107,12 @@ The fallback cannot account for a conflicting task registered later.
 ### Version
 
 Each plugin release has a default Embed Code version that was tested with it.
- The executable is downloaded and verified on its first use, then reused.
+The executable is downloaded and verified on its first use. Before reusing it,
+the plugin compares its digest with the one recorded during installation. This
+local check does not require a network request. If the executable was modified,
+the plugin restores it from the authenticated cached release asset, or fails
+safely when that asset cannot be authenticated offline. Changing `version`
+selects a separate cache entry.
 
 To set the application version explicitly, use its exact release tag:
 

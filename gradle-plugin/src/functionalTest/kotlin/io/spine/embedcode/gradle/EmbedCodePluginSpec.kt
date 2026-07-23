@@ -220,21 +220,21 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Reusing installed Embed Code executable"
+        result.output shouldContain "Reusing locally verified Embed Code executable"
     }
 
     @Test
-    fun `reuse a manually installed executable offline without cache metadata`() {
+    fun `reject a manually installed executable offline without integrity metadata`() {
         writeBuildFile(configureSha256 = false)
         val executable = installedExecutable()
         Files.createDirectories(executable.parent)
         Files.writeString(executable, "user-provided executable")
 
-        val result = runner(":installEmbedCode", "--offline").build()
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(executable) shouldBe "user-provided executable"
-        result.output shouldContain "Reusing installed Embed Code executable"
+        result.output shouldContain "no locally verified executable is available"
+        result.output shouldNotContain "Reusing locally verified Embed Code executable"
     }
 
     @Test
@@ -254,16 +254,45 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `trust a local executable after its verified installation`() {
+    fun `restore a modified installed executable from the verified cached asset`() {
         runner(":installEmbedCode").build()
         val executable = installedExecutable()
+        val verifiedExecutable = Files.readAllBytes(executable)
         Files.writeString(executable, "modified after verification")
 
         val result = runner(":installEmbedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readAllBytes(executable).contentEquals(verifiedExecutable) shouldBe true
+        result.output shouldContain "Reusing verified Embed Code"
+    }
+
+    @Test
+    fun `restore a modified installed executable from the verified cache offline`() {
+        runner(":installEmbedCode").build()
+        val executable = installedExecutable()
+        val verifiedExecutable = Files.readAllBytes(executable)
+        Files.writeString(executable, "modified after verification")
+
+        val result = runner(":installEmbedCode", "--offline").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readAllBytes(executable).contentEquals(verifiedExecutable) shouldBe true
+        result.output shouldContain "Reusing verified cached Embed Code executable"
+    }
+
+    @Test
+    fun `reject a modified installed executable offline without a trusted asset digest`() {
+        runner(":installEmbedCode").build()
+        val executable = installedExecutable()
+        Files.writeString(executable, "modified after verification")
+        writeBuildFile(configureSha256 = false)
+
+        val result = runner(":installEmbedCode", "--offline").buildAndFail()
+
         Files.readString(executable) shouldBe "modified after verification"
-        result.output shouldContain "Reusing previously verified Embed Code"
+        result.output shouldContain "no locally verified executable is available"
+        result.output shouldNotContain "Reusing locally verified Embed Code executable"
     }
 
     @Test
@@ -370,7 +399,7 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
         result.output shouldContain
-            "no executable exists at"
+            "no locally verified executable is available at"
         result.output shouldContain "Configure `embedCode.sha256`"
     }
 
