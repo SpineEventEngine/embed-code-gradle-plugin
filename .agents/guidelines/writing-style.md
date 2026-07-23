@@ -19,6 +19,8 @@ structure when it is more specific.
 - Format paths, identifiers, Gradle tasks, properties, flags, commands, and literals as code.
 - Put multiline commands, configuration, source, output, and other machine text in fenced
   code blocks with a language identifier when one applies.
+- Align Markdown tables in source: pad every cell so column pipes line up vertically,
+  and size separator cells to the padded column widths. Re-align the full table after any edit.
 - Use relative links for repository files.
 - Prefer reference-style links for external destinations.
 

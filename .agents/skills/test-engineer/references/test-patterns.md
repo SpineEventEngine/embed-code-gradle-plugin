@@ -39,15 +39,15 @@ failure would leave the broken contract unclear.
 
 ## Unit or functional
 
-| Behavior | Source set |
-|---|---|
-| Parse, normalize, hash, validate, or map a value | `src/test/kotlin` |
-| Select a platform name without executing Gradle | `src/test/kotlin` |
-| Apply the plugin or configure its extension | `src/functionalTest/kotlin` |
-| Register, wire, execute, or inspect a task | `src/functionalTest/kotlin` |
-| Verify configuration-cache reuse | `src/functionalTest/kotlin` |
-| Verify behavior across Gradle versions | `src/functionalTest/kotlin` |
-| Launch the fake Embed Code executable | `src/functionalTest/kotlin` |
+| Behavior                                         | Source set                  |
+|--------------------------------------------------|-----------------------------|
+| Parse, normalize, hash, validate, or map a value | `src/test/kotlin`           |
+| Select a platform name without executing Gradle  | `src/test/kotlin`           |
+| Apply the plugin or configure its extension      | `src/functionalTest/kotlin` |
+| Register, wire, execute, or inspect a task       | `src/functionalTest/kotlin` |
+| Verify configuration-cache reuse                 | `src/functionalTest/kotlin` |
+| Verify behavior across Gradle versions           | `src/functionalTest/kotlin` |
+| Launch the fake Embed Code executable            | `src/functionalTest/kotlin` |
 
 Do not use TestKit when a direct unit call proves the contract. Do not replace
 a consuming-build test with a unit test when Gradle wiring is the behavior.

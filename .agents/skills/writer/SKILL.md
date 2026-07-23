@@ -69,7 +69,7 @@ Read the [project context](../../../PROJECT.md) and the
 
 ## Validate the edit
 
-- Check heading hierarchy, links, referenced paths, terminology, code fences, and wrapping.
+- Check heading hierarchy, links, paths, terminology, code fences, table alignment, and wrapping.
 - Check that changed Markdown and KDoc follow the shared writing style.
 - Leave no orphans: reflow or rewrite a paragraph, list item, table cell, or KDoc block
   whose final source line contains one word or an unusually short fragment.
