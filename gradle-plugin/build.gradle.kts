@@ -27,6 +27,7 @@
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.Kotlin
 import io.spine.embedcode.gradle.dependency.PluginPublish
+import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Sync
 import org.gradle.plugin.compatibility.compatibility
@@ -53,7 +54,9 @@ val generateEmbedCodeVersion = tasks.register<Sync>("generateEmbedCodeVersion") 
     description = "Generates the default Embed Code application version."
     inputs.property("embedCodeAppVersion", embedCodeAppVersion)
     from(layout.projectDirectory.dir("src/main/templates")) {
-        expand("embedCodeAppVersion" to embedCodeAppVersion)
+        filter<ReplaceTokens>(
+            "tokens" to mapOf("embedCodeAppVersion" to embedCodeAppVersion),
+        )
     }
     into(layout.buildDirectory.dir("generated/sources/embedCodeVersion/kotlin"))
 }
