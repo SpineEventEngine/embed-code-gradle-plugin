@@ -57,10 +57,11 @@ import java.util.zip.ZipInputStream
 /**
  * Downloads and prepares the Embed Code executable selected for the host.
  *
- * Release assets are authenticated before their first installation. A previously
- * verified local installation is reused without another network request or digest
- * calculation. If that installation is missing or its metadata no longer matches
- * the configured release source, the retained asset is authenticated again before use.
+ * Release assets are authenticated before their first installation. Before a local
+ * installation is reused, its digest is calculated and compared with the digest stored
+ * during that verified installation; this does not require a network request. If the
+ * installation is missing, modified, or its metadata no longer matches the configured
+ * release source, the retained asset is authenticated again before use.
  */
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
@@ -115,7 +116,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:LocalState
     public abstract val assetChecksumFile: RegularFileProperty
 
-    /** Records that the prepared executable came from a verified release asset. */
+    /** Records the digest used to authenticate the prepared executable on reuse. */
     @get:LocalState
     public abstract val executableChecksumFile: RegularFileProperty
 
@@ -214,19 +215,25 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             try {
                 resolveLatestVersion(baseUrl)
             } catch (exception: GradleException) {
-                if (isReusableInstalledExecutable(destination, installationRoot)) {
+                if (isLocallyVerifiedExecutable(
+                        destination,
+                        executableChecksum,
+                        installationRoot,
+                    )
+                ) {
                     logger.warn(
                         "Could not check the latest Embed Code release ({}). " +
-                            "Reusing the installed executable from `{}`.",
+                            "Reusing the locally verified installed executable from `{}`.",
                         exception.message,
                         destination,
                     )
                     return
                 }
                 val expectedAssetSha256 = configuredSha256 ?: throw GradleException(
-                    "${exception.message} No installed executable is available for reuse, " +
-                        "and the cached asset cannot be authenticated without a configured " +
-                        "digest. Configure `embedCode.sha256` to restore it safely.",
+                    "${exception.message} No locally verified installed executable is " +
+                        "available for reuse, and the cached asset cannot be authenticated " +
+                        "without a configured digest. Configure `embedCode.sha256` to " +
+                        "restore it safely.",
                     exception,
                 )
                 val cachedTag = readStoredValue(versionFile, installationRoot)
@@ -363,17 +370,30 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         configuredSha256: String?,
         installationRoot: Path,
     ) {
-        if (isReusableInstalledExecutable(destination, installationRoot)) {
+        if (isPreviouslyVerifiedInstallation(
+                destination,
+                versionFile,
+                assetChecksum,
+                executableChecksum,
+                sourceIdentity,
+                requestedTag,
+                baseUrl,
+                asset,
+                configuredSha256,
+                installationRoot,
+            )
+        ) {
             logger.lifecycle(
-                "Reusing installed Embed Code executable from {} in offline mode",
+                "Reusing locally verified Embed Code executable from {} in offline mode",
                 destination,
             )
             return
         }
         val expectedAssetSha256 = configuredSha256 ?: throw GradleException(
-            "Cannot install Embed Code in offline mode because no executable exists at " +
-                "`$destination`, and the cached asset cannot be authenticated without a " +
-                "trusted digest. Configure `embedCode.sha256` to restore it safely.",
+            "Cannot install Embed Code in offline mode because no locally verified " +
+                "executable is available at `$destination`, and the cached asset cannot " +
+                "be authenticated without a trusted digest. Configure `embedCode.sha256` " +
+                "to restore it safely.",
         )
         val cachedTag = readStoredValue(versionFile, installationRoot)
         val selectedTag = requestedTag ?: cachedTag
@@ -410,24 +430,30 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     }
 
     /**
-     * Returns whether an installed executable can be reused without remote verification.
-     *
-     * Offline operation deliberately trusts a regular file placed at the configured output
-     * path. The path itself remains subject to the installation-root and link checks.
+     * Returns whether an installed executable matches its locally stored verified digest.
      */
-    private fun isReusableInstalledExecutable(
+    private fun isLocallyVerifiedExecutable(
         destination: Path,
+        executableChecksum: Path,
         installationRoot: Path,
     ): Boolean {
         requireNoSymbolicLinks(destination, installationRoot)
-        return Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)
+        if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
+            return false
+        }
+        val storedExecutableSha256 = readStoredSha256(
+            executableChecksum,
+            installationRoot,
+        ) ?: return false
+        return try {
+            sha256(destination) == storedExecutableSha256
+        } catch (_: IOException) {
+            false
+        }
     }
 
     /**
      * Returns whether the installed executable was produced by a successful verified install.
-     *
-     * This deliberately treats the local installation and its metadata as trusted after the
-     * initial asset verification. It validates cache identity, but does not rehash local files.
      */
     private fun isPreviouslyVerifiedInstallation(
         destination: Path,
@@ -441,9 +467,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         configuredSha256: String?,
         installationRoot: Path,
     ): Boolean {
-        if (!isReusableInstalledExecutable(destination, installationRoot)) {
-            return false
-        }
         val cachedTag = readStoredValue(versionFile, installationRoot)
         if (requestedTag != null && cachedTag != requestedTag) {
             return false
@@ -458,7 +481,11 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         if (configuredSha256 != null && storedAssetSha256 != configuredSha256) {
             return false
         }
-        return readStoredSha256(executableChecksum, installationRoot) != null
+        return isLocallyVerifiedExecutable(
+            destination,
+            executableChecksum,
+            installationRoot,
+        )
     }
 
     /**

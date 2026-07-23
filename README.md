@@ -107,10 +107,14 @@ The fallback cannot account for a conflicting task registered later.
 ### Version
 
 By default, the plugin resolves and verifies the latest Embed Code release on
-the first installation. It then reuses the executable in
-`build/embed-code/latest` without another release or checksum-metadata request.
-Run `clean` or remove that directory to check for a newer release. Changing the
-configured version.
+the first installation. Before reusing the executable in
+`build/embed-code/latest`, it verifies the executable against the digest stored
+during installation. This local check does not require another release or
+checksum-metadata request. If the executable was modified, the plugin restores
+it from the authenticated cached release asset, or fails safely when that asset
+cannot be authenticated offline. Run `clean` or remove that directory to check
+for a newer release. Changing the configured version selects another cache
+entry.
 
 To use a specific Embed Code application release, add its exact release tag to the extension:
 
