@@ -53,6 +53,7 @@ public class EmbedCodePlugin : Plugin<Project> {
         extension.separator.convention("...")
         extension.info.convention(false)
         extension.stacktrace.convention(false)
+        extension.version.convention(DEFAULT_EMBED_CODE_VERSION)
         extension.downloadBaseUrl.convention(DEFAULT_DOWNLOAD_BASE_URL)
 
         val operatingSystem = System.getProperty("os.name").orEmpty()
@@ -75,24 +76,14 @@ public class EmbedCodePlugin : Plugin<Project> {
             task.offline.set(project.gradle.startParameter.isOffline)
             task.installationDirectory.set(installationDirectory)
             task.installationDirectory.disallowChanges()
-            val requestedTag = task.version.map(::validateVersion)
-            val installationSubdirectory = requestedTag.map { tag ->
-                if (tag.isEmpty()) {
-                    "embed-code/latest"
-                } else {
-                    "embed-code/versions/${releaseTagCacheKey(tag)}"
-                }
-            }.orElse("embed-code/latest")
+            val installationSubdirectory = task.version.map(::validateVersion).map { tag ->
+                "embed-code/versions/${releaseTagCacheKey(tag)}"
+            }
             task.executableFile.set(
                 project.layout.buildDirectory.file(
                     installationSubdirectory.map { directory ->
                         "$directory/$installedExecutableName"
                     },
-                ),
-            )
-            task.resolvedVersionFile.set(
-                project.layout.buildDirectory.file(
-                    installationSubdirectory.map { directory -> "$directory/version.txt" },
                 ),
             )
             task.cachedAssetFile.set(
@@ -117,7 +108,7 @@ public class EmbedCodePlugin : Plugin<Project> {
                     installationSubdirectory.map { directory -> "$directory/source.sha256" },
                 ),
             )
-            // Intentionally rerun and revalidate the cached release asset before execution.
+            // Intentionally rerun to validate local installation state before execution.
             task.outputs.upToDateWhen { false }
         }
 

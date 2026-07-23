@@ -76,9 +76,9 @@ internal fun sha256(value: String): String {
  */
 internal fun releaseAssetIdentity(
     releaseBaseUrl: String,
-    releaseTag: String?,
+    releaseTag: String,
     assetName: String,
-): String = sha256("$releaseBaseUrl\u0000${releaseTag.orEmpty()}\u0000$assetName")
+): String = sha256("$releaseBaseUrl\u0000$releaseTag\u0000$assetName")
 
 /**
  * Validates and normalizes a SHA-256 [value].
@@ -148,14 +148,14 @@ internal fun parseGitHubAssetSha256(json: String, assetName: String): String {
 internal fun resolveExpectedAssetSha256(
     configuredSha256: String?,
     releaseBaseUrl: String,
-    releaseTag: String?,
+    releaseTag: String,
     assetName: String,
     readMetadata: (URI) -> String,
 ): String {
     if (configuredSha256 != null) {
         return configuredSha256
     }
-    val githubApi = releaseTag?.let { githubReleaseApi(releaseBaseUrl, it) }
+    val githubApi = githubReleaseApi(releaseBaseUrl, releaseTag)
         ?: throw GradleException(
             "Automatic SHA-256 resolution is available only for github.com releases. " +
                 "Configure `embedCode.sha256` for asset `$assetName`.",
