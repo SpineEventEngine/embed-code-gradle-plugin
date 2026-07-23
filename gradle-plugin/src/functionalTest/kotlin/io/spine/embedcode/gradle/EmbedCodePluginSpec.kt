@@ -38,15 +38,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
-import java.net.HttpURLConnection.HTTP_MOVED_TEMP
-import java.net.HttpURLConnection.HTTP_UNAVAILABLE
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -120,25 +117,18 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `install platform release asset`() {
+    fun `install the plugin default application release`() {
         val result = runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.installedExecutableName(
-            System.getProperty("os.name"),
-        )
-        val installedExecutable = projectDirectory.resolve(
-            "build/embed-code/latest/$executableName",
-        )
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.exists(installedExecutable) shouldBe true
+        Files.exists(installedExecutable()) shouldBe true
+        result.output shouldContain "Downloading Embed Code $TEST_RELEASE_TAG"
     }
 
     @Test
-    fun `reuse a verified latest executable without another release request`() {
-        val latestTag = AtomicReference(TEST_RELEASE_TAG)
-        val versionChecks = AtomicInteger()
+    fun `reuse the verified default executable without another download`() {
         val downloads = AtomicInteger()
-        val server = startReleaseServer(latestTag, versionChecks, downloads)
+        val server = startReleaseServer(downloads)
         try {
             writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
 
@@ -150,10 +140,9 @@ internal class EmbedCodePluginSpec {
             val result = runner(":installEmbedCode").build()
 
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-            versionChecks.get() shouldBe 1
             downloads.get() shouldBe 1
             result.output shouldContain
-                "Reusing previously verified Embed Code v$TEST_RELEASE_VERSION"
+                "Reusing previously verified Embed Code $TEST_RELEASE_TAG"
         } finally {
             server.stop(0)
         }
@@ -188,63 +177,34 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `use a resolved latest release tag without modification`() {
-        val releaseTag = "release-$TEST_RELEASE_VERSION"
-        createFakeRelease(releaseDirectory, tag = releaseTag)
+    fun `install an overridden application release into a separate cache`() {
+        val nextVersion = "1.2.5-test"
+        val nextTag = "v$nextVersion"
+        createFakeRelease(releaseDirectory, nextVersion, nextTag)
         val downloads = AtomicInteger()
-        val server = startReleaseServer(
-            AtomicReference(releaseTag),
-            AtomicInteger(),
-            downloads,
-        )
+        val server = startReleaseServer(downloads)
         try {
             writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
-
             runner(":installEmbedCode").build()
 
-            downloads.get() shouldBe 1
-            Files.readString(
-                projectDirectory.resolve("build/embed-code/latest/version.txt"),
-            ).trim() shouldBe releaseTag
-        } finally {
-            server.stop(0)
-        }
-    }
-
-    @Test
-    fun `download latest executable when the configured digest changes`() {
-        val nextVersion = "1.2.5-test"
-        createFakeRelease(releaseDirectory, nextVersion)
-        val latestTag = AtomicReference(TEST_RELEASE_TAG)
-        val versionChecks = AtomicInteger()
-        val downloads = AtomicInteger()
-        val server = startReleaseServer(latestTag, versionChecks, downloads)
-        try {
             writeBuildFile(
+                version = nextTag,
                 downloadBaseUrl = server.releaseBaseUrl,
-                sha256 = releaseAssetSha256(tag = TEST_RELEASE_TAG),
+                sha256 = releaseAssetSha256(tag = nextTag),
             )
             runner(":installEmbedCode").build()
 
-            latestTag.set("v$nextVersion")
-            writeBuildFile(
-                downloadBaseUrl = server.releaseBaseUrl,
-                sha256 = releaseAssetSha256(tag = "v$nextVersion"),
-            )
-            runner(":installEmbedCode").build()
-
-            versionChecks.get() shouldBe 2
             downloads.get() shouldBe 2
-            Files.readString(
-                projectDirectory.resolve("build/embed-code/latest/version.txt"),
-            ).trim() shouldBe "v$nextVersion"
+            Files.exists(installedExecutable(TEST_RELEASE_TAG)) shouldBe true
+            Files.readString(installedExecutable(nextTag)) shouldContain
+                "# release-marker: $nextVersion"
         } finally {
             server.stop(0)
         }
     }
 
     @Test
-    fun `reuse latest executable in offline mode`() {
+    fun `reuse the default executable in offline mode`() {
         val server = startReleaseServer()
         writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
         try {
@@ -278,134 +238,10 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `reuse cached executable when the latest release check fails`() {
-        val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
-        val versionChecks = AtomicInteger()
-        val downloads = AtomicInteger()
-        val server = startReleaseServer(
-            versionChecks = versionChecks,
-            downloads = downloads,
-            latestStatus = latestStatus,
-        )
-        writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
-        try {
-            runner(":installEmbedCode").build()
-            writeBuildFile(
-                downloadBaseUrl = server.releaseBaseUrl,
-                configureSha256 = false,
-            )
-            Files.delete(installationDirectory().resolve("source.sha256"))
-            latestStatus.set(HTTP_UNAVAILABLE)
-
-            val result = runner(":installEmbedCode").build()
-
-            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-            versionChecks.get() shouldBe 2
-            downloads.get() shouldBe 1
-            result.output shouldContain "Could not check the latest Embed Code release"
-            result.output shouldContain "HTTP 503 from ${server.releaseBaseUrl}/latest"
-            result.output shouldContain "Reusing the locally verified installed executable"
-        } finally {
-            server.stop(0)
-        }
-    }
-
-    @Test
-    fun `require a configured digest to restore a cached asset after latest check failure`() {
-        val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
-        val downloads = AtomicInteger()
-        val server = startReleaseServer(
-            downloads = downloads,
-            latestStatus = latestStatus,
-        )
-        try {
-            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
-            runner(":installEmbedCode").build()
-            Files.delete(installedExecutable())
-
-            writeBuildFile(
-                downloadBaseUrl = server.releaseBaseUrl,
-                configureSha256 = false,
-            )
-            latestStatus.set(HTTP_UNAVAILABLE)
-            val result = runner(":installEmbedCode").buildAndFail()
-
-            result.output shouldContain
-                "No locally verified installed executable is available for reuse, and " +
-                "the cached asset cannot be authenticated without a configured digest."
-            result.output shouldContain "Configure `embedCode.sha256`"
-            downloads.get() shouldBe 1
-        } finally {
-            server.stop(0)
-        }
-    }
-
-    @Test
-    fun `restore a verified cached asset after latest release check failure`() {
-        val latestStatus = AtomicInteger(HTTP_MOVED_TEMP)
-        val downloads = AtomicInteger()
-        val server = startReleaseServer(
-            downloads = downloads,
-            latestStatus = latestStatus,
-        )
-        try {
-            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
-            runner(":installEmbedCode").build()
-            Files.delete(installedExecutable())
-            latestStatus.set(HTTP_UNAVAILABLE)
-
-            val result = runner(":installEmbedCode").build()
-
-            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-            Files.exists(installedExecutable()) shouldBe true
-            downloads.get() shouldBe 1
-            result.output shouldContain "Reusing the cached executable"
-        } finally {
-            server.stop(0)
-        }
-    }
-
-    @Test
-    fun `report a failed latest release check without a cached executable`() {
-        val versionChecks = AtomicInteger()
-        val downloads = AtomicInteger()
-        val server = startReleaseServer(
-            versionChecks = versionChecks,
-            downloads = downloads,
-            latestStatus = AtomicInteger(HTTP_UNAVAILABLE),
-        )
-        try {
-            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
-
-            val result = runner(":installEmbedCode").buildAndFail()
-
-            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
-            versionChecks.get() shouldBe 1
-            downloads.get() shouldBe 0
-            result.output shouldContain
-                "Could not resolve the latest Embed Code release: " +
-                "HTTP 503 from ${server.releaseBaseUrl}/latest."
-            result.output shouldNotContain "Reusing the cached executable"
-        } finally {
-            server.stop(0)
-        }
-    }
-
-    @Test
-    fun `report a missing latest executable in offline mode`() {
+    fun `report a missing default executable in offline mode`() {
         val result = runner(":installEmbedCode", "--offline").buildAndFail()
 
         result.output shouldContain "Cannot reuse cached Embed Code asset"
-    }
-
-    @Test
-    fun `keep explicit versions offline when no verified executable is cached`() {
-        writeBuildFile(version = TEST_RELEASE_TAG)
-
-        val result = runner(":installEmbedCode", "--offline").buildAndFail()
-
-        result.output shouldContain "Cannot install Embed Code in offline mode"
-        result.output shouldNotContain "Downloading Embed Code"
     }
 
     @Test
@@ -612,18 +448,12 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `treat an empty release tag as the rolling latest release`() {
-        writeBuildFile(version = "  ")
+    fun `reject an empty release tag`() {
+        writeBuildFile(version = "  ", configureSha256 = false)
 
-        val result = runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.installedExecutableName(
-            System.getProperty("os.name"),
-        )
+        val result = runner(":installEmbedCode").buildAndFail()
 
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.exists(
-            projectDirectory.resolve("build/embed-code/latest/$executableName"),
-        ) shouldBe true
+        result.output shouldContain "The Embed Code release tag must not be empty."
     }
 
     @Test
@@ -632,12 +462,10 @@ internal class EmbedCodePluginSpec {
 
         val result = runner(":installEmbedCode").build()
         val cacheKey = releaseTagCacheKey(TEST_RELEASE_TAG)
-        val installation = installationDirectory(TEST_RELEASE_TAG)
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         cacheKey.length shouldBe 64
         cacheKey.all { it in '0'..'9' || it in 'a'..'f' } shouldBe true
-        Files.readString(installation.resolve("version.txt")).trim() shouldBe TEST_RELEASE_TAG
         Files.exists(installedExecutable(TEST_RELEASE_TAG)) shouldBe true
     }
 
@@ -656,37 +484,19 @@ internal class EmbedCodePluginSpec {
         runner(":installEmbedCode").build()
 
         (releaseTagCacheKey(lowerTag) == releaseTagCacheKey(upperTag)) shouldBe false
-        Files.readString(
-            installationDirectory(lowerTag).resolve("version.txt"),
-        ).trim() shouldBe lowerTag
         Files.readString(installedExecutable(lowerTag)) shouldContain
             "# release-marker: lower"
-        Files.readString(
-            installationDirectory(upperTag).resolve("version.txt"),
-        ).trim() shouldBe upperTag
         Files.readString(installedExecutable(upperTag)) shouldContain
             "# release-marker: upper"
     }
 
     @Test
-    fun `keep an explicit latest tag separate from the rolling latest cache`() {
-        runner(":installEmbedCode").build()
-        createFakeRelease(releaseDirectory, version = "explicit-latest", tag = "latest")
-        writeBuildFile(version = "latest")
+    fun `reject the rolling latest version`() {
+        writeBuildFile(version = "latest", configureSha256 = false)
 
-        val result = runner(":installEmbedCode").build()
-        val executableName = EmbedCodePlatform.installedExecutableName(
-            System.getProperty("os.name"),
-        )
-        val rollingLatest = projectDirectory.resolve("build/embed-code/latest/$executableName")
-        val pinnedLatest = projectDirectory.resolve(
-            "build/embed-code/versions/${releaseTagCacheKey("latest")}/$executableName",
-        )
+        val result = runner(":installEmbedCode").buildAndFail()
 
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "/download/latest/"
-        Files.readString(rollingLatest) shouldContain "# release-marker: $TEST_RELEASE_VERSION"
-        Files.readString(pinnedLatest) shouldContain "# release-marker: explicit-latest"
+        result.output shouldContain "The rolling Embed Code version `latest` is not supported."
     }
 
     @Test
@@ -1163,7 +973,8 @@ internal class EmbedCodePluginSpec {
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
         val checksumConfiguration = if (configureSha256) {
-            val configuredSha256 = sha256 ?: releaseAssetSha256(tag = version)
+            val selectedTag = version?.trim() ?: TEST_RELEASE_TAG
+            val configuredSha256 = sha256 ?: releaseAssetSha256(tag = selectedTag)
             "sha256.set(\"$configuredSha256\")"
         } else {
             ""
@@ -1192,21 +1003,17 @@ internal class EmbedCodePluginSpec {
     }
 
     /**
-     * Returns the cache directory for the rolling latest release or an exact [releaseTag].
+     * Returns the cache directory for [releaseTag].
      */
-    private fun installationDirectory(releaseTag: String? = null): Path {
-        val relativePath = if (releaseTag == null) {
-            "build/embed-code/latest"
-        } else {
-            "build/embed-code/versions/${releaseTagCacheKey(releaseTag)}"
-        }
-        return projectDirectory.resolve(relativePath)
-    }
+    private fun installationDirectory(releaseTag: String = TEST_RELEASE_TAG): Path =
+        projectDirectory.resolve(
+            "build/embed-code/versions/${releaseTagCacheKey(releaseTag)}",
+        )
 
     /**
-     * Returns the installed executable for the rolling latest release or [releaseTag].
+     * Returns the installed executable for [releaseTag].
      */
-    private fun installedExecutable(releaseTag: String? = null): Path {
+    private fun installedExecutable(releaseTag: String = TEST_RELEASE_TAG): Path {
         val executableName = EmbedCodePlatform.installedExecutableName(
             System.getProperty("os.name"),
         )
@@ -1265,9 +1072,7 @@ internal class EmbedCodePluginSpec {
             System.getProperty("os.arch"),
         )
         val versionDirectory = root.resolve("download/$tag")
-        val latestDirectory = root.resolve("latest/download")
         Files.createDirectories(versionDirectory)
-        Files.createDirectories(latestDirectory)
         val executable = projectDirectory.resolve(platform.executableName)
         Files.writeString(
             executable,
@@ -1300,12 +1105,6 @@ internal class EmbedCodePluginSpec {
                 StandardCopyOption.REPLACE_EXISTING,
             )
         }
-        val latestAsset = latestDirectory.resolve(platform.assetName)
-        Files.copy(
-            asset,
-            latestAsset,
-            StandardCopyOption.REPLACE_EXISTING,
-        )
     }
 
     /**
@@ -1313,47 +1112,23 @@ internal class EmbedCodePluginSpec {
      */
     private fun releaseAssetSha256(
         root: Path = releaseDirectory,
-        tag: String? = null,
+        tag: String = TEST_RELEASE_TAG,
     ): String {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
         )
-        val normalizedTag = tag?.trim()?.ifEmpty { null }
-        val asset = if (normalizedTag == null) {
-            root.resolve("latest/download/${platform.assetName}")
-        } else {
-            root.resolve("download/$normalizedTag/${platform.assetName}")
-        }
+        val asset = root.resolve("download/${tag.trim()}/${platform.assetName}")
         return sha256(asset)
     }
 
     /**
-     * Starts a release server with mutable latest-release status and tag responses.
+     * Starts a release server that records exact-tag asset downloads.
      */
     private fun startReleaseServer(
-        latestTag: AtomicReference<String> = AtomicReference(TEST_RELEASE_TAG),
-        versionChecks: AtomicInteger = AtomicInteger(),
         downloads: AtomicInteger = AtomicInteger(),
-        latestStatus: AtomicInteger = AtomicInteger(HTTP_MOVED_TEMP),
     ): HttpServer {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/releases/latest") { exchange ->
-            versionChecks.incrementAndGet()
-            val responseStatus = latestStatus.get()
-            if (exchange.requestMethod != "HEAD") {
-                exchange.sendResponseHeaders(405, -1)
-            } else if (responseStatus != HTTP_MOVED_TEMP) {
-                exchange.sendResponseHeaders(responseStatus, -1)
-            } else {
-                exchange.responseHeaders.add(
-                    "Location",
-                    "/releases/tag/${latestTag.get()}",
-                )
-                exchange.sendResponseHeaders(HTTP_MOVED_TEMP, -1)
-            }
-            exchange.close()
-        }
         server.createContext("/releases/download/") { exchange ->
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
             downloads.incrementAndGet()
@@ -1375,8 +1150,8 @@ internal class EmbedCodePluginSpec {
         get() = "http://127.0.0.1:${address.port}/releases"
 
     private companion object {
-        const val TEST_RELEASE_VERSION = "1.2.4-test"
-        const val TEST_RELEASE_TAG = "v1.2.4-test"
+        val TEST_RELEASE_TAG = DEFAULT_EMBED_CODE_VERSION
+        val TEST_RELEASE_VERSION = TEST_RELEASE_TAG.removePrefix("v")
     }
 }
 

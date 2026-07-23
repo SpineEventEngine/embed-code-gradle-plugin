@@ -34,11 +34,21 @@ private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
  * Trims and validates a user-configured Embed Code release tag.
  *
  * The tag becomes a release URL segment, so only URL-safe characters are accepted.
- * An empty tag selects the latest release.
  */
 internal fun validateVersion(value: String): String {
     val version = value.trim()
-    if (version.isNotEmpty() && !validReleaseTag.matches(version)) {
+    if (version.isEmpty()) {
+        throw InvalidUserDataException(
+            "The Embed Code release tag must not be empty. Configure an exact release tag.",
+        )
+    }
+    if (version.equals("latest", ignoreCase = true)) {
+        throw InvalidUserDataException(
+            "The rolling Embed Code version `latest` is not supported. " +
+                "Configure an exact release tag.",
+        )
+    }
+    if (!validReleaseTag.matches(version)) {
         throw InvalidUserDataException(
             "Embed Code release tag `$value` is invalid. " +
                 "Use letters, digits, dots, hyphens, underscores, plus signs, or tildes, " +

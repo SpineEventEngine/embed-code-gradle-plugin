@@ -27,7 +27,9 @@
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.Kotlin
 import io.spine.embedcode.gradle.dependency.PluginPublish
+import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.Sync
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
@@ -45,6 +47,22 @@ dependencies {
     // Unit tests no longer inherit TestKit's Gradle and Kotlin runtime; supply both explicitly.
     testRuntimeOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
     testRuntimeOnly(gradleApi())
+}
+
+val embedCodeAppVersion = rootProject.extra["embedCodeAppVersion"] as String
+val generateEmbedCodeVersion = tasks.register<Sync>("generateEmbedCodeVersion") {
+    description = "Generates the default Embed Code application version."
+    inputs.property("embedCodeAppVersion", embedCodeAppVersion)
+    from(layout.projectDirectory.dir("src/main/templates")) {
+        filter<ReplaceTokens>(
+            "tokens" to mapOf("embedCodeAppVersion" to embedCodeAppVersion),
+        )
+    }
+    into(layout.buildDirectory.dir("generated/sources/embedCodeVersion/kotlin"))
+}
+
+kotlin.sourceSets.named("main") {
+    kotlin.srcDir(generateEmbedCodeVersion)
 }
 
 val functionalTestSourceSet = sourceSets.create("functionalTest")

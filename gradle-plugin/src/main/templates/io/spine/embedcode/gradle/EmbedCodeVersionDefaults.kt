@@ -24,8 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** Version of the Embed Code Gradle plugin. */
-extra.set("embedCodePluginVersion", "0.1.1")
+package io.spine.embedcode.gradle
 
-/** Version of the Embed Code application used by default. */
-extra.set("embedCodeAppVersion", "1.2.4")
+/** The Embed Code release bundled by default with this plugin version. */
+internal const val DEFAULT_EMBED_CODE_VERSION: String = "v@embedCodeAppVersion@"

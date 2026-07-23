@@ -133,7 +133,7 @@ internal class ChecksumSpec {
         val resolved = resolveExpectedAssetSha256(
             digest,
             "file:///tmp/embed-code/releases",
-            null,
+            "v1.2.4",
             "embed-code-linux",
         ) {
             throw AssertionError("Metadata must not be read for a configured checksum.")
@@ -148,7 +148,7 @@ internal class ChecksumSpec {
             resolveExpectedAssetSha256(
                 null,
                 "file:///tmp/embed-code/releases",
-                null,
+                "v1.2.4",
                 "embed-code-linux",
             ) {
                 throw AssertionError("Metadata must not be read outside GitHub.")

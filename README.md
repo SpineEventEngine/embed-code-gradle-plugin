@@ -106,18 +106,15 @@ The fallback cannot account for a conflicting task registered later.
 
 ### Version
 
-By default, the plugin resolves and verifies the latest Embed Code release on
-the first installation. Before reusing the executable in
-`build/embed-code/latest`, it verifies the executable against the digest stored
-during installation. This local check does not require another release or
-checksum-metadata request. If the executable was modified, the plugin restores
-it from the authenticated cached release asset, or fails safely when that asset
-cannot be authenticated offline. Run `clean` or remove that directory to check
-for a newer release. Changing the configured `version` selects a separate cache
-entry. If that entry does not already contain a verified installation, the
-plugin downloads and verifies the selected release while online.
+Each plugin release has a default Embed Code version that was tested with it.
+The executable is downloaded and verified on its first use. Before reusing it,
+the plugin compares its digest with the one recorded during installation. This
+local check does not require a network request. If the executable was modified,
+the plugin restores it from the authenticated cached release asset, or fails
+safely when that asset cannot be authenticated offline. Changing `version`
+selects a separate cache entry.
 
-To use a specific Embed Code application release, add its exact release tag to the extension:
+To set the application version explicitly, use its exact release tag:
 
 ```kotlin
 embedCode {
@@ -136,9 +133,7 @@ embedCode {
 ```
 
 For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit
-during the initial resolution. Without `sha256`, the first online installation
-resolves the asset digest from GitHub release metadata. Pin both `version` and
-`sha256` to keep that initial installation tied to an immutable release.
+during the initial checksum lookup.
 
 ## Development
 

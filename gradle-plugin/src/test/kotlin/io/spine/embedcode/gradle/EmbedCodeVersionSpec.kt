@@ -43,7 +43,6 @@ internal class EmbedCodeVersionSpec {
             "v1.2.3",
             "1.0.0-beta+build",
             "2.0_rc1",
-            "latest",
             "CON",
             "release.",
         )
@@ -65,8 +64,19 @@ internal class EmbedCodeVersionSpec {
     }
 
     @Test
-    fun `treat an empty release tag as latest`() {
-        assertEquals("", validateVersion("  "))
+    fun `reject a missing exact release tag`() {
+        assertThrows(InvalidUserDataException::class.java) {
+            validateVersion("  ")
+        }
+    }
+
+    @Test
+    fun `reject the rolling latest version`() {
+        listOf("latest", "LATEST", "Latest").forEach { tag ->
+            assertThrows(InvalidUserDataException::class.java) {
+                validateVersion(tag)
+            }
+        }
     }
 
     @Test

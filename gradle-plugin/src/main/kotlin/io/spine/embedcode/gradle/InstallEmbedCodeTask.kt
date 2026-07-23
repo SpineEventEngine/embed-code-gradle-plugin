@@ -66,9 +66,8 @@ import java.util.zip.ZipInputStream
 @DisableCachingByDefault(because = "Release assets come from external URLs that may change")
 public abstract class InstallEmbedCodeTask : DefaultTask() {
 
-    /** An optional Embed Code release tag used verbatim; absent or empty selects latest. */
+    /** The exact Embed Code release tag used verbatim. */
     @get:Input
-    @get:Optional
     public abstract val version: Property<String>
 
     /** An optional user-provided SHA-256 digest of the release asset. */
@@ -104,10 +103,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @get:OutputFile
     public abstract val executableFile: RegularFileProperty
 
-    /** Stores the exact release tag represented by this installation. */
-    @get:LocalState
-    public abstract val resolvedVersionFile: RegularFileProperty
-
     /** Stores the downloaded release asset used to recreate the executable. */
     @get:LocalState
     public abstract val cachedAssetFile: RegularFileProperty
@@ -130,7 +125,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     @TaskAction
     public fun install() {
         // Validate again because consumers can configure this public task input directly.
-        val requestedTag = version.orNull?.let(::validateVersion)?.ifEmpty { null }
+        val releaseTag = validateVersion(version.get())
         val configuredSha256 = sha256.orNull?.let(::normalizeSha256)
         val hostOperatingSystem = operatingSystem.get()
         val hostArchitecture = architecture.get()
@@ -153,10 +148,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             cachedAssetFile.get().asFile.toPath(),
             installationRoot,
         )
-        val versionFile = requireInsideInstallationDirectory(
-            resolvedVersionFile.get().asFile.toPath(),
-            installationRoot,
-        )
         val assetChecksum = requireInsideInstallationDirectory(
             assetChecksumFile.get().asFile.toPath(),
             installationRoot,
@@ -177,11 +168,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 platform,
                 destination,
                 cachedAsset,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                requestedTag,
+                releaseTag,
                 baseUrl,
                 asset,
                 configuredSha256,
@@ -189,14 +179,12 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             )
             return
         }
-        val cachedTag = readStoredValue(versionFile, installationRoot)
         if (isPreviouslyVerifiedInstallation(
                 destination,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                requestedTag,
+                releaseTag,
                 baseUrl,
                 asset,
                 configuredSha256,
@@ -205,86 +193,25 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         ) {
             logger.lifecycle(
                 "Reusing previously verified Embed Code {} from {}",
-                selectedVersionName(requestedTag, cachedTag),
+                releaseTag,
                 destination,
             )
             return
         }
-        val resolvedTag = if (requestedTag == null) {
-            logger.info("Resolving the latest Embed Code release from {}.", baseUrl)
-            try {
-                resolveLatestVersion(baseUrl)
-            } catch (exception: GradleException) {
-                if (isLocallyVerifiedExecutable(
-                        destination,
-                        executableChecksum,
-                        installationRoot,
-                    )
-                ) {
-                    logger.warn(
-                        "Could not check the latest Embed Code release ({}). " +
-                            "Reusing the locally verified installed executable from `{}`.",
-                        exception.message,
-                        destination,
-                    )
-                    return
-                }
-                val expectedAssetSha256 = configuredSha256 ?: throw GradleException(
-                    "${exception.message} No locally verified installed executable is " +
-                        "available for reuse, and the cached asset cannot be authenticated " +
-                        "without a configured digest. Configure `embedCode.sha256` to " +
-                        "restore it safely.",
-                    exception,
-                )
-                val cachedTag = readStoredValue(versionFile, installationRoot)
-                val expectedSourceIdentity = releaseAssetIdentity(baseUrl, cachedTag, asset)
-                val reused = installFromVerifiedAsset(
-                    platform,
-                    destination,
-                    cachedAsset,
-                    versionFile,
-                    assetChecksum,
-                    executableChecksum,
-                    sourceIdentity,
-                    cachedTag,
-                    expectedSourceIdentity,
-                    expectedAssetSha256,
-                    installationRoot,
-                )
-                if (!reused) {
-                    throw exception
-                }
-                logger.warn(
-                    "Could not check the latest Embed Code release ({}). " +
-                        "Reusing the cached executable from `{}`.",
-                    exception.message,
-                    destination,
-                )
-                return
-            }
-        } else {
-            null
-        }
-        if (resolvedTag != null) {
-            logger.info("Resolved the latest Embed Code release as {}.", resolvedTag)
-        }
-        val selectedReleaseTag = requestedTag ?: resolvedTag
         val expectedAssetSha256 = resolveTrustedAssetSha256(
             configuredSha256,
             baseUrl,
-            selectedReleaseTag,
+            releaseTag,
             asset,
         )
-        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedReleaseTag, asset)
+        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, releaseTag, asset)
         if (installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                selectedReleaseTag,
                 expectedSourceIdentity,
                 expectedAssetSha256,
                 installationRoot,
@@ -292,22 +219,21 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         ) {
             logger.lifecycle(
                 "Reusing verified Embed Code {} from {}",
-                selectedVersionName(requestedTag, resolvedTag),
+                releaseTag,
                 destination,
             )
             return
         }
-        val source = releaseAsset(baseUrl, selectedReleaseTag, asset)
+        val source = releaseAsset(baseUrl, releaseTag, asset)
         val download = Files.createTempFile(temporaryDir.toPath(), "downloaded-asset-", ".tmp")
 
         try {
             createDirectoriesSafely(destination.parent, installationRoot)
-            val release = requestedTag ?: "latest release"
-            logger.lifecycle("Downloading Embed Code {} from {}", release, source)
+            logger.lifecycle("Downloading Embed Code {} from {}", releaseTag, source)
             try {
                 download(source, download)
             } catch (exception: GradleException) {
-                throw addReleaseTagMigrationHint(exception, requestedTag)
+                throw addReleaseTagMigrationHint(exception, releaseTag)
             }
             val downloadedSha256 = sha256(download)
             if (downloadedSha256 != expectedAssetSha256) {
@@ -318,20 +244,13 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
             logger.info("Verified SHA-256 digest `{}` for {}.", downloadedSha256, asset)
             moveSafely(download, cachedAsset, installationRoot)
-            if (selectedReleaseTag == null) {
-                deleteSafely(versionFile, installationRoot)
-            } else {
-                writeStoredValue(versionFile, selectedReleaseTag, installationRoot)
-            }
             val installed = installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                selectedReleaseTag,
                 expectedSourceIdentity,
                 expectedAssetSha256,
                 installationRoot,
@@ -343,7 +262,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             }
             logger.info(
                 "Installed Embed Code {} at {}.",
-                selectedReleaseTag ?: "latest release",
+                releaseTag,
                 destination,
             )
         } catch (exception: IOException) {
@@ -360,11 +279,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         platform: EmbedCodePlatform,
         destination: Path,
         cachedAsset: Path,
-        versionFile: Path,
         assetChecksum: Path,
         executableChecksum: Path,
         sourceIdentity: Path,
-        requestedTag: String?,
+        releaseTag: String,
         baseUrl: String,
         asset: String,
         configuredSha256: String?,
@@ -372,11 +290,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     ) {
         if (isPreviouslyVerifiedInstallation(
                 destination,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                requestedTag,
+                releaseTag,
                 baseUrl,
                 asset,
                 configuredSha256,
@@ -395,24 +312,14 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 "be authenticated without a trusted digest. Configure `embedCode.sha256` " +
                 "to restore it safely.",
         )
-        val cachedTag = readStoredValue(versionFile, installationRoot)
-        val selectedTag = requestedTag ?: cachedTag
-        if (requestedTag != null && cachedTag != requestedTag) {
-            throw GradleException(
-                "Cannot install Embed Code in offline mode because " +
-                    "no cached asset exists for release tag `$requestedTag`.",
-            )
-        }
-        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedTag, asset)
+        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, releaseTag, asset)
         if (!installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
-                versionFile,
                 assetChecksum,
                 executableChecksum,
                 sourceIdentity,
-                selectedTag,
                 expectedSourceIdentity,
                 expectedAssetSha256,
                 installationRoot,
@@ -457,22 +364,16 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
      */
     private fun isPreviouslyVerifiedInstallation(
         destination: Path,
-        versionFile: Path,
         assetChecksum: Path,
         executableChecksum: Path,
         sourceIdentity: Path,
-        requestedTag: String?,
+        releaseTag: String,
         baseUrl: String,
         asset: String,
         configuredSha256: String?,
         installationRoot: Path,
     ): Boolean {
-        val cachedTag = readStoredValue(versionFile, installationRoot)
-        if (requestedTag != null && cachedTag != requestedTag) {
-            return false
-        }
-        val selectedTag = requestedTag ?: cachedTag
-        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, selectedTag, asset)
+        val expectedSourceIdentity = releaseAssetIdentity(baseUrl, releaseTag, asset)
         if (readStoredValue(sourceIdentity, installationRoot) != expectedSourceIdentity) {
             return false
         }
@@ -502,7 +403,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     private fun resolveTrustedAssetSha256(
         configuredSha256: String?,
         baseUrl: String,
-        releaseTag: String?,
+        releaseTag: String,
         asset: String,
     ): String = resolveExpectedAssetSha256(
         configuredSha256,
@@ -525,20 +426,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         platform: EmbedCodePlatform,
         destination: Path,
         cachedAsset: Path,
-        versionFile: Path,
         assetChecksum: Path,
         executableChecksum: Path,
         sourceIdentity: Path,
-        releaseTag: String?,
         expectedSourceIdentity: String,
         expectedAssetSha256: String,
         installationRoot: Path,
     ): Boolean {
         requireNoSymbolicLinks(cachedAsset, installationRoot)
         if (!Files.isRegularFile(cachedAsset, LinkOption.NOFOLLOW_LINKS)) {
-            return false
-        }
-        if (readStoredValue(versionFile, installationRoot) != releaseTag) {
             return false
         }
         val stagedAsset = Files.createTempFile(temporaryDir.toPath(), "cached-asset-", ".tmp")
@@ -567,11 +463,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             writeStoredValue(assetChecksum, expectedAssetSha256, installationRoot)
             writeStoredValue(executableChecksum, preparedExecutableSha256, installationRoot)
             writeStoredValue(sourceIdentity, expectedSourceIdentity, installationRoot)
-            if (releaseTag == null) {
-                deleteSafely(versionFile, installationRoot)
-            } else {
-                writeStoredValue(versionFile, releaseTag, installationRoot)
-            }
             return true
         } catch (_: IOException) {
             return false
@@ -586,9 +477,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         const val CONNECT_TIMEOUT_MILLIS = 30_000
         const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
-
-        fun selectedVersionName(requestedTag: String?, resolvedTag: String?): String =
-            requestedTag ?: resolvedTag ?: "latest release"
 
         /**
          * Normalizes [path] and verifies that it is below [installationDirectory].
@@ -732,9 +620,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
          */
         fun addReleaseTagMigrationHint(
             exception: GradleException,
-            requestedTag: String?,
+            requestedTag: String,
         ): GradleException {
-            if (requestedTag == null || requestedTag.startsWith('v')) {
+            if (requestedTag.startsWith('v')) {
                 return exception
             }
             return GradleException(
@@ -745,61 +633,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         }
 
         /**
-         * Returns the tag of the release targeted by the latest-release redirect.
-         *
-         * Non-HTTP sources have no redirect response, so their tag is unknown.
+         * Returns the release asset URI for [releaseTag].
          */
-        fun resolveLatestVersion(baseUrl: String): String? {
-            val source = URI.create("$baseUrl/latest")
-            val connection = source.toURL().openConnection()
-            if (connection !is HttpURLConnection) {
-                return null
-            }
-            try {
-                connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-                connection.readTimeout = READ_TIMEOUT_MILLIS
-                connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
-                connection.instanceFollowRedirects = false
-                connection.requestMethod = "HEAD"
-                val status = connection.responseCode
-                if (status < 300 || status > 399) {
-                    throw GradleException(
-                        "Could not resolve the latest Embed Code release: " +
-                            "HTTP $status from $source.",
-                    )
-                }
-                val location = connection.getHeaderField("Location")
-                    ?: throw GradleException(
-                        "Could not resolve the latest Embed Code release: " +
-                            "the redirect from $source has no Location header.",
-                    )
-                val releaseUri = source.resolve(location)
-                val tag = releaseUri.path.substringAfterLast('/')
-                if (tag.isEmpty()) {
-                    throw GradleException(
-                        "Could not resolve the latest Embed Code release from `$releaseUri`.",
-                    )
-                }
-                return tag
-            } catch (exception: IOException) {
-                throw GradleException(
-                    "Could not resolve the latest Embed Code release from $source.",
-                    exception,
-                )
-            } finally {
-                connection.disconnect()
-            }
-        }
-
-        /**
-         * Returns the release asset URI for the latest release or [releaseTag].
-         */
-        fun releaseAsset(baseUrl: String, releaseTag: String?, asset: String): URI {
-            if (releaseTag == null) {
-                return URI.create("$baseUrl/latest/download/$asset")
-            }
-            return URI.create("$baseUrl/download/$releaseTag/$asset")
-        }
+        fun releaseAsset(baseUrl: String, releaseTag: String, asset: String): URI =
+            URI.create("$baseUrl/download/$releaseTag/$asset")
 
         /**
          * Downloads [source] into [destination], reporting HTTP failures clearly.
@@ -928,15 +765,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             } finally {
                 Files.deleteIfExists(temporaryFile)
             }
-        }
-
-        /**
-         * Removes [file] without following symbolic links.
-         */
-        @Throws(IOException::class)
-        fun deleteSafely(file: Path, installationDirectory: Path) {
-            requireNoSymbolicLinks(file, installationDirectory)
-            Files.deleteIfExists(file)
         }
 
         /**

@@ -46,8 +46,9 @@ public abstract class EmbedCodeExtension {
     private val configuredSourceNames = mutableSetOf<String>()
 
     /**
-     * An optional release tag used verbatim; absent or empty selects the latest release.
+     * The exact Embed Code release tag to install.
      *
+     * By default, the plugin selects the release tested with this plugin version.
      * Tags must start with an ASCII letter or digit and may then contain only letters,
      * digits, dots, hyphens, underscores, plus signs, or tildes.
      * Tags containing `/` are unsupported because the tag is used as a release URL segment.
@@ -58,8 +59,8 @@ public abstract class EmbedCodeExtension {
      * An optional SHA-256 digest of the configured release asset.
      *
      * The plugin resolves this digest automatically for releases hosted on
-     * `github.com`. Configure this property together with [version] to pin a
-     * release asset explicitly.
+     * `github.com`. Configure this property to pin the release asset explicitly
+     * and avoid a GitHub metadata request during its first installation.
      */
     public abstract val sha256: Property<String>
 
@@ -129,9 +130,8 @@ public abstract class EmbedCodeExtension {
     /**
      * The base URL of the Embed Code releases.
      *
-     * The plugin appends `/latest/download/<platform-asset>` when [version] is
-     * absent or empty, or `/download/<release-tag>/<platform-asset>` for an
-     * explicit tag. This property primarily supports functional testing.
+     * The plugin appends `/download/<release-tag>/<platform-asset>`.
+     * This property primarily supports functional testing.
      */
     public abstract val downloadBaseUrl: Property<String>
 
