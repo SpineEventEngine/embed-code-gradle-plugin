@@ -28,4 +28,4 @@
 extra.set("embedCodePluginVersion", "0.1.1")
 
 /** Version of the Embed Code application used by default. */
-extra.set("embedCodeAppVersion", "v1.2.4")
+extra.set("embedCodeAppVersion", "1.2.4")

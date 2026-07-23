@@ -27,4 +27,4 @@
 package io.spine.embedcode.gradle
 
 /** The Embed Code release bundled by default with this plugin version. */
-internal const val DEFAULT_EMBED_CODE_VERSION: String = "@embedCodeAppVersion@"
+internal const val DEFAULT_EMBED_CODE_VERSION: String = "v@embedCodeAppVersion@"
