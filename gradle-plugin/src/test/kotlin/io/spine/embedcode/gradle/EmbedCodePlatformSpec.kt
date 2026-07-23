@@ -60,11 +60,13 @@ internal class EmbedCodePlatformSpec {
     }
 
     @Test
-    fun `select bare Linux asset for a release published before ZIP packaging`() {
-        assertEquals(
-            EmbedCodePlatform("embed-code-linux", "embed-code-linux"),
-            EmbedCodePlatform.detect("Linux", "amd64", "v1.2.4"),
-        )
+    fun `select bare Linux asset for releases published before ZIP packaging`() {
+        listOf("v1.2.3", "v1.2.4").forEach { releaseTag ->
+            assertEquals(
+                EmbedCodePlatform("embed-code-linux", "embed-code-linux"),
+                EmbedCodePlatform.detect("Linux", "amd64", releaseTag),
+            )
+        }
     }
 
     @Test

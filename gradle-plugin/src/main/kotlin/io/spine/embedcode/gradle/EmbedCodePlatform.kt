@@ -95,7 +95,7 @@ internal data class EmbedCodePlatform(
         }
 
         /**
-         * Releases published before Linux ZIP packaging was introduced.
+         * All releases published before Linux ZIP packaging was introduced.
          */
         private val bareLinuxAssetReleases = setOf("v1.2.3", "v1.2.4")
     }
