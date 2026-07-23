@@ -1,0 +1,4 @@
+interface:
+  display_name: "Writer"
+  short_description: "Write clear project docs and Kotlin KDoc"
+  default_prompt: "Use $writer to write or update this repository documentation."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kotlin Engineer"
+  short_description: "Implement idiomatic, compatible Kotlin changes"
+  default_prompt: "Use $kotlin-engineer to implement this Kotlin change in the repository."
