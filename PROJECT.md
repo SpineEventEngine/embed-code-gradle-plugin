@@ -101,7 +101,7 @@ procedures in the matching skill.
 ## Agent routes
 
 - Codex: `AGENTS.md` → `PROJECT.md` → matching `.agents/skills/` entries.
-- Claude: `CLAUDE.md` → `AGENTS.md` → `PROJECT.md` → matching `.claude/skills/` aliases.
+- Claude: `CLAUDE.md` → `AGENTS.md` → `PROJECT.md` → matching `.agents/skills/` entries.
 - GitHub Copilot: `.github/copilot-instructions.md` → `AGENTS.md` → `PROJECT.md`
   → matching repository skills under `.agents/skills/`.
 

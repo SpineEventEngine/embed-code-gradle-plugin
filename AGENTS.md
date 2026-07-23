@@ -12,20 +12,14 @@ operating policy; keep task-specific procedures in the skills under `.agents/ski
 
 ## Skill routing
 
-Use all skills whose scope matches the requested work:
+Use all matching skills. The links are an index; each frontmatter description defines its scope:
 
-- [`kotlin-engineer`](.agents/skills/kotlin-engineer/SKILL.md): Kotlin source,
-  Kotlin DSL, public API design, interoperability, and implementation quality.
-- [`gradle-engineer`](.agents/skills/gradle-engineer/SKILL.md): build scripts,
-  plugin and task APIs, lazy configuration, compatibility, and publication metadata.
-- [`test-engineer`](.agents/skills/test-engineer/SKILL.md): JUnit Jupiter unit tests,
-  Gradle TestKit functional tests, reproductions, fixtures, and regression coverage.
-- [`writer`](.agents/skills/writer/SKILL.md): Markdown, KDoc, comments, examples,
-  task descriptions, public errors, and agent instructions.
-- [`security-engineer`](.agents/skills/security-engineer/SKILL.md): release downloads,
-  integrity, caches, offline reuse, archives, tokens, redirects, and path containment.
-- [`reviewer`](.agents/skills/reviewer/SKILL.md): read-only review of diffs, commits,
-  and pull requests, including relevant test execution and specialist review lenses.
+- [`kotlin-engineer`](.agents/skills/kotlin-engineer/SKILL.md)
+- [`gradle-engineer`](.agents/skills/gradle-engineer/SKILL.md)
+- [`test-engineer`](.agents/skills/test-engineer/SKILL.md)
+- [`writer`](.agents/skills/writer/SKILL.md)
+- [`security-engineer`](.agents/skills/security-engineer/SKILL.md)
+- [`reviewer`](.agents/skills/reviewer/SKILL.md)
 
 Combine skills only when their scopes overlap:
 

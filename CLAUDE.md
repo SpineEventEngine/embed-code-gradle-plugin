@@ -2,4 +2,4 @@
 
 # Claude-specific routing
 
-Load every matching skill through `.claude/skills/`, which maps to `.agents/skills/`.
+Load every matching skill directly from `.agents/skills/`.
