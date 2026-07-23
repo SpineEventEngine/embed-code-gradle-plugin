@@ -39,7 +39,7 @@ internal class EmbedCodePlatformSpec {
     fun `select Apple silicon asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-macos-arm64.zip", "embed-code-macos-arm64"),
-            EmbedCodePlatform.detect("Mac OS X", "aarch64"),
+            EmbedCodePlatform.detect("Mac OS X", "aarch64", "v1.2.4"),
         )
     }
 
@@ -47,15 +47,23 @@ internal class EmbedCodePlatformSpec {
     fun `select Intel macOS asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-macos-x64.zip", "embed-code-macos-x64"),
-            EmbedCodePlatform.detect("Mac OS X", "x86_64"),
+            EmbedCodePlatform.detect("Mac OS X", "x86_64", "v1.2.4"),
         )
     }
 
     @Test
-    fun `select Linux asset`() {
+    fun `select Linux ZIP asset for a new release`() {
+        assertEquals(
+            EmbedCodePlatform("embed-code-linux.zip", "embed-code-linux"),
+            EmbedCodePlatform.detect("Linux", "amd64", "v1.2.5"),
+        )
+    }
+
+    @Test
+    fun `select bare Linux asset for a release published before ZIP packaging`() {
         assertEquals(
             EmbedCodePlatform("embed-code-linux", "embed-code-linux"),
-            EmbedCodePlatform.detect("Linux", "amd64"),
+            EmbedCodePlatform.detect("Linux", "amd64", "v1.2.4"),
         )
     }
 
@@ -63,7 +71,7 @@ internal class EmbedCodePlatformSpec {
     fun `select Windows asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-windows.exe", "embed-code-windows.exe"),
-            EmbedCodePlatform.detect("Windows 11", "amd64"),
+            EmbedCodePlatform.detect("Windows 11", "amd64", "v1.2.4"),
         )
     }
 
@@ -80,7 +88,7 @@ internal class EmbedCodePlatformSpec {
     @Test
     fun `reject platform without release binary`() {
         val error = assertThrows(GradleException::class.java) {
-            EmbedCodePlatform.detect("Linux", "aarch64")
+            EmbedCodePlatform.detect("Linux", "aarch64", "v1.2.4")
         }
 
         assertEquals(

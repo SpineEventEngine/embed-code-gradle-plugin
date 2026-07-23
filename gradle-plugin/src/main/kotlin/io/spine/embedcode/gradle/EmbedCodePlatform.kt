@@ -50,9 +50,13 @@ internal data class EmbedCodePlatform(
             }
 
         /**
-         * Selects the release asset for [osName] and [architecture].
+         * Selects the release asset for [osName], [architecture], and [releaseTag].
          */
-        fun detect(osName: String, architecture: String): EmbedCodePlatform {
+        fun detect(
+            osName: String,
+            architecture: String,
+            releaseTag: String,
+        ): EmbedCodePlatform {
             val os = osName.lowercase(Locale.ROOT)
             val arch = architecture.lowercase(Locale.ROOT)
             val isAmd64 = arch == "amd64" || arch == "x86_64"
@@ -70,7 +74,11 @@ internal data class EmbedCodePlatform(
                 )
 
                 os.contains("linux") && isAmd64 -> EmbedCodePlatform(
-                    "embed-code-linux",
+                    if (releaseTag in bareLinuxAssetReleases) {
+                        "embed-code-linux"
+                    } else {
+                        "embed-code-linux.zip"
+                    },
                     "embed-code-linux",
                 )
 
@@ -85,5 +93,10 @@ internal data class EmbedCodePlatform(
                 )
             }
         }
+
+        /**
+         * Releases published before Linux ZIP packaging was introduced.
+         */
+        private val bareLinuxAssetReleases = setOf("v1.2.3", "v1.2.4")
     }
 }
