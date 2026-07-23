@@ -22,8 +22,8 @@ Read the [project context](../../../PROJECT.md) before reviewing.
 2. Inspect repository status without cleaning, staging, switching branches, or fetching.
 3. Read the complete diff and every changed file in full.
 4. Identify the acceptance source: request, issue, review comment, contract, test, or docs.
-5. Trace affected callers, task wiring, data flows, tests, and documentation far enough to
-   establish the actual impact.
+5. Trace affected callers, task wiring, data flows, tests, and documentation
+   far enough to establish the actual impact.
 6. Inspect resolved or outdated review threads when the request includes prior comments.
 
 ## Gather evidence
@@ -32,18 +32,16 @@ Read the [project context](../../../PROJECT.md) before reviewing.
 - Run focused tests and read-only diagnostics when they materially improve confidence.
 - Distinguish observed facts from inference.
 - Confirm reachability and user impact before reporting a correctness or security issue.
-- Omit speculative findings. Do not promote an incomplete probe or a theoretical concern
-  into a defect.
+- Omit speculation; do not turn an incomplete probe or theoretical concern into a defect.
 - Reconcile historical findings against the current checkout before repeating them.
 - Preserve unrelated local changes and untracked files.
 
-## Compose companion skills
+## Select review lenses
 
 Load only the guidance relevant to the changed files. Apply it during review instead of
 copying its policy into this skill.
 
-- Use [Kotlin engineer](../kotlin-engineer/SKILL.md) for Kotlin implementation and API
-  conventions.
+- Use [Kotlin engineer](../kotlin-engineer/SKILL.md) for Kotlin implementation and API conventions.
 - Use [Gradle engineer](../gradle-engineer/SKILL.md) for build logic, task modeling,
   configuration cache, compatibility, and publication configuration.
 - Use [test engineer](../test-engineer/SKILL.md) for test design and verification depth.
@@ -61,8 +59,7 @@ Lead with findings. For each finding:
 - Cite the tightest file and line range.
 - State the evidence, affected scenario, and concrete impact.
 - Explain the smallest safe correction without writing or applying it.
-- Avoid praise, summaries of correct code, and style preferences unsupported by project
-  policy.
+- Avoid praise, summaries of correct code, or style preferences unsupported by project policy.
 
 Return these sections in order:
 

@@ -30,8 +30,9 @@ Read the [project context](../../../PROJECT.md) and the
 2. Treat current repository behavior as authoritative.
 3. Verify every path, command, version, default, and platform, along with every task
    name, property, and failure claim, against current evidence.
-4. Run the narrowest practical command when prose claims executable behavior or output.
-5. Mark any remaining unverified claim explicitly; do not turn an assumption into fact.
+4. Apply the specialist skill that owns each technical claim being changed.
+5. Run the narrowest practical command when prose claims executable behavior or output.
+6. Mark any remaining unverified claim explicitly; do not turn an assumption into fact.
 
 ## Write user-facing documentation
 
@@ -66,15 +67,6 @@ Read the [project context](../../../PROJECT.md) and the
 - Keep credentials and other sensitive values out of errors, examples, and logs.
 - Use inline comments to explain why a constraint exists. Do not narrate the next statement.
 - Preserve exact machine text, command output, code, generated content, and license text.
-
-## Compose companion skills
-
-- Consult [Kotlin engineer](../kotlin-engineer/SKILL.md) for declaration and API design.
-- Consult [Gradle engineer](../gradle-engineer/SKILL.md) for Gradle DSL,
-  task behavior, and compatibility claims.
-- Consult [test engineer](../test-engineer/SKILL.md) for test examples and verification.
-- Consult [security engineer](../security-engineer/SKILL.md) for trust-boundary claims.
-- Route read-only feedback to [reviewer](../reviewer/SKILL.md).
 
 ## Validate the edit
 

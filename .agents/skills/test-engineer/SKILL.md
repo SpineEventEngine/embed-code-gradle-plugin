@@ -14,29 +14,23 @@ description: >
    and the closest specs in the same source set.
 2. Reproduce a reported defect before changing production code whenever a
    deterministic reproduction is possible.
-3. Classify the behavior as a focused unit contract or a consuming-build
-   contract. Use [the test patterns](references/test-patterns.md) to choose the
-   source set and fixture.
+3. Classify the behavior as a focused unit contract or a consuming-build contract.
+   Use [the test patterns](references/test-patterns.md) to choose the source set and fixture.
 4. Add the smallest test that proves the requested behavior and its important
    failure boundary. Keep unrelated coverage work out of scope.
-5. Run the focused spec or source-set task first. Run the full repository check
-   after the focused test passes.
-6. Report the behavior covered, the test location, and every verification
-   command with its result.
+5. After the focused spec or source-set task passes, run the full repository check.
+6. Report the covered behavior, test location, and result of every verification command.
 
 ## Test style
 
 - Use JUnit Jupiter for test structure and assertions.
 - Do not add Kotest, a mocking framework, or another assertion dependency.
 - Name a suite for subject `X` as `XSpec`; make Kotlin suites `internal`.
-- Annotate every suite with `@DisplayName` describing what the subject should
-  do.
-- Name test functions as backticked behavioral phrases that read as
-  specifications.
+- Annotate every suite with `@DisplayName` describing the subject's expected behavior.
+- Name test functions as backticked behavioral specifications.
 - Prefer hand-written stubs, fixed inputs, and observable outputs over mocks or
   implementation-detail verification.
-- Keep setup close to the behavior unless a helper removes substantial,
-  repeated noise.
+- Keep setup close to the behavior; extract a helper only when it removes substantial noise.
 
 ## Test boundary
 
@@ -53,8 +47,7 @@ description: >
 
 - Use temporary directories and fixed fixture contents.
 - Replace release services with local files or a loopback fake HTTP server.
-- Never depend on live GitHub, release assets, DNS, credentials, or public
-  network availability.
+- Never depend on live GitHub, release assets, DNS, credentials, or public network availability.
 - Bind fake servers to loopback on an ephemeral port and stop them reliably.
 - Use fixed clocks, versions, digests, and environment values where relevant.
 - Gate genuinely platform-specific behavior with JUnit conditions; do not hide
@@ -70,12 +63,9 @@ description: >
   [gradle-engineer](../gradle-engineer/SKILL.md) when build logic, plugin
   metadata, compatibility, or publication behavior changes.
 
-## Companion skills
+## Cross-domain work
 
-- Use [kotlin-engineer](../kotlin-engineer/SKILL.md) for Kotlin and KDoc style
-  inside tests and production code.
-- Use [gradle-engineer](../gradle-engineer/SKILL.md) for Gradle task and plugin
-  semantics.
-- Use [security-engineer](../security-engineer/SKILL.md) to identify adversarial
+- Apply [gradle-engineer](../gradle-engineer/SKILL.md) when expected behavior depends
+  on Gradle lifecycle, task annotations, configuration cache, or compatibility.
+- Apply [security-engineer](../security-engineer/SKILL.md) to identify adversarial
   path, archive, download, checksum, cache, process, and credential cases.
-- Use [reviewer](../reviewer/SKILL.md) for an independent findings-first review.

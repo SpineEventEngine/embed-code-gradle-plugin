@@ -19,22 +19,17 @@ behavior when authenticity or filesystem ownership cannot be established.
    installation, platform, and functional-test code.
 2. Identify the attacker-controlled value, trusted value, filesystem boundary,
    online/offline state, and final executable before proposing a change.
-3. Reproduce a reported weakness with a concrete regression probe. Do not
-   present a hypothetical path as exploitable when the probe is unavailable or
-   blocked by an existing guard.
+3. Reproduce a reported weakness with a concrete regression probe. Do not claim
+   exploitability when the probe is unavailable or an existing guard blocks it.
 4. Read [Trust boundaries](references/trust-boundaries.md) for download, cache,
    redirect, archive, token, or path work.
 
-## Coordinate responsibilities
+## Cross-domain work
 
 - Apply [`gradle-engineer`](../gradle-engineer/SKILL.md) to task properties,
   local state, configuration cache, and TestKit wiring.
-- Apply [`kotlin-engineer`](../kotlin-engineer/SKILL.md) to Kotlin and Java
-  filesystem or network API usage.
-- Apply [`test-engineer`](../test-engineer/SKILL.md) to regression structure and
-  deterministic fixtures.
-- Apply [`reviewer`](../reviewer/SKILL.md) to severity, evidence, and review
-  scope.
+- Use [`test-engineer`](../test-engineer/SKILL.md) for
+  deterministic regression fixtures and assertions.
 - Apply [`writer`](../writer/SKILL.md) when security behavior changes public
   configuration, diagnostics, or release documentation.
 
@@ -42,8 +37,7 @@ behavior when authenticity or filesystem ownership cannot be established.
 
 - Accept exact validated release tags. Keep rolling or path-shaped identifiers
   out of release URLs and cache paths.
-- Authenticate every downloaded or retained asset with a trusted SHA-256 before
-  extraction or execution.
+- Authenticate downloaded or retained assets with trusted SHA-256 before extraction or execution.
 - Bind reusable state to release base URL, exact tag, and platform asset. Treat
   a source-identity mismatch as unverified state.
 - Rehash the installed executable before reuse. Never treat file existence,
@@ -54,9 +48,8 @@ behavior when authenticity or filesystem ownership cannot be established.
   promoted only after verification.
 - Extract only the expected executable into a controlled staging file. Never
   resolve arbitrary archive entry paths into the installation tree.
-- Validate normalized path containment and reject symbolic links, junctions,
-  redirecting entries, and non-directory components from the installation root
-  to every destination.
+- Validate normalized path containment from the installation root to every destination;
+  reject symbolic links, junctions, redirecting entries, and non-directory components.
 - Keep tokens opt-in, internal, and absent from logs, errors, cache metadata,
   task inputs, and requests to untrusted hosts.
 - Keep authenticated metadata requests from following redirects. Verify asset
@@ -72,8 +65,7 @@ behavior when authenticity or filesystem ownership cannot be established.
   whether authorization could cross a host boundary.
 - Probe crafted archives against the actual extraction strategy and assert no
   write outside controlled staging and installation paths.
-- Assert failure leaves no trusted executable or valid-looking integrity
-  metadata behind.
+- Assert failures leave no trusted executable or valid-looking integrity metadata.
 
 ## Verify
 

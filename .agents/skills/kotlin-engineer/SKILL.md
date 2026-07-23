@@ -34,20 +34,17 @@ description: >
   uses a newer JDK. Do not call runtime APIs introduced after Java 17.
 - Preserve the Gradle-supplied Kotlin runtime model. Do not package a separate
   Kotlin runtime or raise the configured language/API compatibility casually.
-- Prefer immutable values and read-only interfaces. Limit mutation to the
-  narrowest implementation scope.
+- Prefer immutable values and read-only interfaces; keep mutation narrowly scoped.
 - Express invalid user configuration with clear validation at the boundary.
   Keep internal failures distinct from actionable Gradle user errors.
 - Avoid `!!`. Use it only for a proven invariant that cannot be represented
   more safely, and explain that invariant next to the use.
-- Keep comments useful: explain constraints, invariants, or surprising choices
-  rather than restating code.
+- Use comments for constraints, invariants, or surprising choices, not code narration.
 
 ## Documentation contract
 
 - Write useful KDoc for every named type, regardless of visibility: classes,
-  interfaces, objects, companion objects, enum classes, annotation classes,
-  and type aliases.
+  interfaces, objects, companion objects, enum and annotation classes, and type aliases.
 - Write useful KDoc for every public constructor, property, and function.
 - Document every public enum entry.
 - Document private and internal non-type declarations only when their contract
@@ -56,12 +53,9 @@ description: >
   lifecycle semantics, and compatibility constraints where applicable.
 - Update KDoc when code changes invalidate an existing statement.
 
-## Companion skills
+## Cross-domain work
 
-- Use [gradle-engineer](../gradle-engineer/SKILL.md) for Provider API, task
-  modeling, configuration-cache, and plugin wiring decisions.
-- Use [test-engineer](../test-engineer/SKILL.md) for unit and TestKit tests.
-- Use [security-engineer](../security-engineer/SKILL.md) when changing downloads,
-  checksums, archives, paths, caches, processes, or credentials.
-- Use [writer](../writer/SKILL.md) for README and other user-facing prose.
-- Use [reviewer](../reviewer/SKILL.md) for an independent findings-first review.
+- Apply [gradle-engineer](../gradle-engineer/SKILL.md) when Kotlin declarations
+  participate in Gradle APIs, task modeling, providers, or plugin lifecycle.
+- Apply [security-engineer](../security-engineer/SKILL.md) when Kotlin changes affect
+  downloads, checksums, archives, paths, caches, processes, or credentials.

@@ -16,8 +16,8 @@ behavior as public contracts.
 ## Start
 
 1. Read [`PROJECT.md`](../../../PROJECT.md) for the project map and supported behavior.
-2. Read the affected build scripts, plugin API, task types, and nearby unit or
-   functional tests in full.
+2. Read the affected build scripts, plugin API, and task types, along with
+   nearby unit and functional tests in full.
 3. Trace values from the extension through `Provider` wiring into task inputs,
    execution behavior, outputs, and local state.
 4. Read [Gradle practices](references/gradle-practices.md) when changing task
@@ -25,16 +25,12 @@ behavior as public contracts.
 5. Clarify only material ambiguity in the public DSL, compatibility floor, or
    verification target before editing.
 
-## Coordinate responsibilities
+## Cross-domain work
 
 - Apply [`kotlin-engineer`](../kotlin-engineer/SKILL.md) to Kotlin source and
   build-logic implementation quality.
-- Apply [`test-engineer`](../test-engineer/SKILL.md) to test structure,
-  assertions, fixtures, and regression design.
 - Apply [`security-engineer`](../security-engineer/SKILL.md) to release
   downloads, integrity metadata, offline reuse, tokens, archives, and paths.
-- Apply [`writer`](../writer/SKILL.md) to public DSL documentation and examples.
-- Apply [`reviewer`](../reviewer/SKILL.md) for findings-first review output.
 
 ## Apply the Gradle model
 
@@ -42,18 +38,16 @@ behavior as public contracts.
   eager realization and configuration-time filesystem or network work.
 - Model configurable values with `Property`, `ListProperty`, `MapProperty`,
   `DirectoryProperty`, `RegularFileProperty`, and provider transformations.
-- Wire producer-backed files through providers or file collections so Gradle
-  retains task dependencies.
+- Wire producer-backed files through providers or file collections to preserve task dependencies.
 - Declare every task input, output, local-state file, and internal value
   according to its actual semantics. Choose path sensitivity deliberately.
-- Keep secrets internal. Never expose a token as an input, log value, cache
-  identity, or publication value.
+- Keep tokens internal and out of task inputs, logs, cache identities, and publication values.
 - Keep task actions configuration-cache safe. Inject execution services and
   avoid accessing `Project` or mutable configuration state at execution time.
 - Disable caching or up-to-date reuse when in-place writes, mutable external
   sources, or validation of local state make reuse unsound.
-- Prefer Kotlin DSL and existing convention plugins over ad hoc Groovy or
-  duplicated module configuration.
+- Prefer Kotlin DSL and existing convention plugins; do not duplicate module
+  configuration or add ad hoc Groovy.
 
 ## Preserve repository contracts
 
@@ -71,9 +65,8 @@ behavior as public contracts.
   coordinates, POM metadata, and license packaging aligned.
 - Allow the install task to remain ungrouped and hidden from the standard task
   listing. Do not flag or change that behavior without a user-facing reason.
-- Do not import organization-wide configuration-repository filtering or add a
-  rule requiring dependency groups to contain `spine`; neither is a repository
-  policy.
+- Do not copy organization-wide repository filtering or dependency-group naming rules
+  unless this repository adopts them explicitly.
 
 ## Verify
 
