@@ -31,8 +31,8 @@ Combine skills only when their scopes overlap:
 
 - Kotlin in plugin or build logic normally requires both `kotlin-engineer` and `gradle-engineer`.
 - Any behavioral change requires `test-engineer` with the owning implementation skill.
-- Security-sensitive behavior requires the affected implementation skill,
-  `security-engineer`, and `test-engineer`.
+- Security work requires `security-engineer` and `test-engineer`, plus the skill
+  responsible for the affected implementation.
 - Documentation and public API text require `writer` plus the skill owning the contract.
 - Review uses `reviewer` plus matching specialist skills; the reviewer remains read-only.
 
@@ -50,18 +50,18 @@ Combine skills only when their scopes overlap:
 
 - Use Kotlin and Gradle Kotlin DSL. Do not add Groovy build scripts.
 - Use the Gradle wrapper and preserve the compatibility targets declared by the build.
-- Preserve Gradle's lazy configuration and supplied Kotlin runtime, along with
-  configuration-cache compatibility.
+- Preserve lazy Gradle configuration, its supplied Kotlin runtime, and configuration-cache support.
 - Preserve JUnit Jupiter and Gradle TestKit. Do not introduce Kotest or a mocking framework
   without an explicit dependency and style decision.
 - Use local fixtures or loopback HTTP servers so tests remain independent of live services.
 
 ## Documentation
 
-- Follow `.agents/guidelines/writing-style.md` for Markdown, KDoc, comments, and user-facing text.
-- Give every named Kotlin type useful KDoc, regardless of visibility.
-- Give every public API useful KDoc. Document private members only when they carry a
-  non-obvious contract, invariant, side effect, or failure mode.
+- Apply the [writer skill](.agents/skills/writer/SKILL.md) and
+  [writing style](.agents/guidelines/writing-style.md) to documentation and user-facing text.
+- Follow the
+  [Kotlin KDoc policy](.agents/skills/kotlin-engineer/references/kotlin-policy.md#kdoc)
+  for declarations and public APIs.
 - Verify documentation claims against current code, tests, build files, or command output.
 
 ## Verification
@@ -70,8 +70,16 @@ Combine skills only when their scopes overlap:
 - Run `./gradlew check` before handing off a completed code or test change unless the task is
   documentation-only or a narrower check is explicitly sufficient.
 - Run `git diff --check` after editing.
-- Report every command actually run and distinguish failures caused by the change from
-  environment or unrelated failures.
+- Report every command actually run. Separate failures caused by the change from failures
+  caused by the environment or unrelated work.
+
+## Reporting
+
+- Include a `## Used skills` section in every final response.
+- List all materially applied skills, including repository and platform-provided skills.
+- Do not list skills that were merely discovered, inspected, or considered.
+- Write `- None.` when no skill was used.
+- Place the section last unless a required machine-readable trailer must remain last.
 
 ## Agent entry points
 

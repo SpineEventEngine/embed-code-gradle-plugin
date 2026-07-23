@@ -2,26 +2,34 @@
 
 Match the nearest existing spec before introducing a new helper or layout.
 
+## Contents
+
+- [Unit spec](#unit-spec)
+- [Unit or functional](#unit-or-functional)
+- [TestKit project](#testkit-project)
+- [Fake releases and HTTP](#fake-releases-and-http)
+- [Filesystem and process fixtures](#filesystem-and-process-fixtures)
+- [Compatibility cases](#compatibility-cases)
+- [Verification commands](#verification-commands)
+
 ## Unit spec
 
 Use JUnit Jupiter structure and assertions:
 
 ```kotlin
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.gradle.api.InvalidUserDataException
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-@DisplayName("`ReleaseTag` should")
-internal class ReleaseTagSpec {
+@DisplayName("Embed Code release-tag support should")
+internal class EmbedCodeVersionSpec {
 
     @Test
-    fun `reject a blank value`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            validateReleaseTag(" ")
+    fun `reject a missing exact release tag`() {
+        assertThrows(InvalidUserDataException::class.java) {
+            validateVersion("  ")
         }
-
-        assertEquals("Release tag must not be blank.", error.message)
     }
 }
 ```
@@ -87,22 +95,18 @@ actionable message rather than a complete stack trace.
 - Use `HttpServer` on `127.0.0.1` with port `0` when request behavior matters.
 - Record request paths, headers, or counts in thread-safe test state.
 - Return only the status and body needed by the test.
-- Stop the server in `finally`, `@AfterEach`, or another guaranteed cleanup
-  path.
+- Stop the server in `finally`, `@AfterEach`, or another guaranteed cleanup path.
 - Use a local file URI instead of HTTP when transport behavior is irrelevant.
 
-Never call GitHub or another public endpoint from a test. A live service makes
-rate limits, credentials, network failures, mutable releases, and remote state
-part of the result.
+Never call GitHub or another public endpoint from a test. A live service makes the result
+depend on rate limits, credentials, network failures, mutable releases, and remote state.
 
 ## Filesystem and process fixtures
 
 - Resolve every fixture below the temporary directory.
 - Use fixed file contents and explicit UTF-8 where an API requires a charset.
-- Create a minimal fake executable that records arguments and produces a fixed
-  exit result.
-- Test both the expected path and important containment or replacement
-  failures.
+- Create a minimal fake executable with fixed output that records its arguments and exit status.
+- Test the expected path and important containment or replacement failures.
 - Avoid sleeps. Wait on an observable process, file, or request condition with
   a bounded timeout when synchronization is necessary.
 - Apply JUnit OS conditions only to behavior that truly depends on executable
@@ -110,14 +114,12 @@ part of the result.
 
 ## Compatibility cases
 
-Use `withGradleVersion(...)` only for versions supported by the plugin's stated
-compatibility range. Keep the ordinary runner on the wrapper version. Cover a
-second Gradle version when the changed API or behavior varies across Gradle
-releases.
+Use `withGradleVersion(...)` only within the plugin's stated compatibility range.
+Keep the ordinary runner on the wrapper version. Cover another Gradle version when
+the changed API or behavior varies between releases.
 
-Keep Java 17 consumer compatibility distinct from the JDK used to build the
-project. A test passing on the build JDK alone does not prove that the published
-plugin runs on Java 17.
+Keep Java 17 consumer compatibility distinct from the JDK used to build the project.
+A test passing on the build JDK alone does not prove Java 17 consumer compatibility.
 
 ## Verification commands
 
@@ -129,5 +131,4 @@ Prefer this order:
 ./gradlew check
 ```
 
-Run only the applicable focused command first. Run the full check before
-claiming completion.
+Run the applicable focused command first, then run the full check before claiming completion.

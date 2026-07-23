@@ -8,11 +8,10 @@ description: >-
 
 # Repository reviewer
 
-Remain read-only with respect to source, configuration, documentation, Git state, and
-remote state. Running tests and read-only diagnostics is allowed; normal ignored build
-and test outputs are their only permitted filesystem side effect. Never edit files,
-apply patches, stage, commit, push, publish, reply to review comments, or resolve review
-threads. Route implementation to a companion skill.
+Keep source, configuration, documentation, Git state, and remote state read-only. Run tests
+and read-only diagnostics only when useful, and limit their filesystem side effects to normal
+ignored build and test outputs. Never edit files, apply patches, stage, commit, push, publish,
+reply to review comments, or resolve review threads. Route implementation to a separate task.
 
 Read the [project context](../../../PROJECT.md) before reviewing.
 
@@ -38,8 +37,9 @@ Read the [project context](../../../PROJECT.md) before reviewing.
 
 ## Select review lenses
 
-Load only the guidance relevant to the changed files. Apply it during review instead of
-copying its policy into this skill.
+Load only the guidance relevant to the changed files. Use companion skills as review lenses,
+not as permission to implement. Skip their implementation workflows and any command that
+exceeds this skill's read-only boundary.
 
 - Use [Kotlin engineer](../kotlin-engineer/SKILL.md) for Kotlin implementation and API conventions.
 - Use [Gradle engineer](../gradle-engineer/SKILL.md) for build logic, task modeling,
@@ -47,9 +47,9 @@ copying its policy into this skill.
 - Use [test engineer](../test-engineer/SKILL.md) for test design and verification depth.
 - Use [security engineer](../security-engineer/SKILL.md) for executable, checksum, cache,
   path, archive, token, network, and offline trust boundaries.
-- Use [writer](../writer/SKILL.md) and the
-  [writing style](../../guidelines/writing-style.md) for prose, KDoc, examples, errors,
-  comments, and agent instructions.
+- Use [writer](../writer/SKILL.md) and the shared
+  [writing style](../../guidelines/writing-style.md) when reviewing prose, KDoc,
+  examples, errors, comments, or agent instructions.
 
 ## Report only actionable findings
 
@@ -71,8 +71,10 @@ Return these sections in order:
 
 Write `None.` under an empty section.
 
-End with one verdict:
+Conclude the findings with one verdict:
 
 - `REQUEST CHANGES` when **Must fix** is non-empty.
 - `APPROVE WITH CHANGES` when only **Should fix** is non-empty.
 - `APPROVE` when only **Nits** or no findings remain.
+
+After the verdict, append the [required `Used skills` section](../../../AGENTS.md#reporting).

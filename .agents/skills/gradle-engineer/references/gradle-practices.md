@@ -18,15 +18,12 @@ Verify current versions and paths in the checkout before relying on this map.
 
 ## Project ownership
 
-- Keep repository composition and dependency repositories in
-  `settings.gradle.kts`.
-- Keep shared coordinates and version application in the root build and
-  `version.gradle.kts`.
+- Keep repository composition and dependency repositories in `settings.gradle.kts`.
+- Keep shared coordinates and version application in the root build and `version.gradle.kts`.
 - Keep build-only constants and dependency coordinates in `buildSrc/`.
-- Keep shared JVM compilation and test setup in the `jvm-module` convention
-  plugin.
-- Keep plugin declaration, generated sources, functional-test source set, and
-  publication metadata in `gradle-plugin/build.gradle.kts`.
+- Keep shared JVM compilation and test setup in the `jvm-module` convention plugin.
+- Keep plugin declarations, generated sources, and functional-test sources in
+  `gradle-plugin/build.gradle.kts`, together with publication metadata.
 - Keep extension defaults and task registration in `EmbedCodePlugin`.
 - Keep user-configurable values in `EmbedCodeExtension`.
 - Keep execution behavior in typed task classes. Keep pure release, platform,
@@ -35,17 +32,15 @@ Verify current versions and paths in the checkout before relying on this map.
 ## Lazy configuration
 
 - Use `tasks.register`, `tasks.named`, provider mapping, and `flatMap`.
-- Pass `TaskProvider` and provider-backed files through the graph instead of
-  calling `get()` during configuration.
+- Pass `TaskProvider` and provider-backed files through the graph; avoid `get()`
+  and other eager reads during configuration.
 - Use conventions for defaults and preserve later user configuration.
-- Use `disallowChanges()` only for values owned entirely by the plugin after
-  wiring.
-- Preserve task dependencies carried by `Provider<Directory>` and
-  `ConfigurableFileCollection`.
+- Use `disallowChanges()` only for values owned entirely by the plugin after wiring.
+- Preserve task dependencies carried by `Provider<Directory>` and `ConfigurableFileCollection`.
 - Avoid configuration-time downloads, process execution, directory creation,
   and file reads whose result belongs to task execution.
-- Keep collision handling lazy. Preserve underscore-prefixed fallback task
-  names when preferred names are occupied.
+- Select underscore-prefixed fallback task names from names already present when
+  the plugin is applied. Preserve the documented limitation for tasks registered later.
 
 ## Task state and caching
 
@@ -62,8 +57,8 @@ Verify current versions and paths in the checkout before relying on this map.
   `PathSensitivity.NONE` when only file bytes matter.
 - Disable build caching for in-place document mutation, external mutable
   release state, or tasks whose primary purpose is validating local state.
-- Override up-to-date behavior only with an explicit invariant. The install
-  task intentionally reruns to authenticate local installation state.
+- Override up-to-date behavior only with an explicit invariant; keep the install
+  task configured to rerun so it authenticates local installation state.
 
 ## Configuration cache
 
@@ -78,25 +73,22 @@ Verify current versions and paths in the checkout before relying on this map.
 
 ## Compatibility and Kotlin runtime
 
-- Preserve the documented consumer floor of Gradle 8.14.4.
-- Treat the wrapper as the development runtime, not as the minimum supported
-  consumer version.
-- Keep Java bytecode at version 17 while supporting Gradle 8.14.4 and Gradle 9.
-- Keep Kotlin language and API usage compatible with Kotlin 2.0.21 supplied by
-  Gradle 8.14.4.
-- Keep Kotlin standard library dependencies `compileOnly` for plugin
-  publication. Supply explicit test runtime dependencies where unit tests need
-  Gradle and Kotlin classes.
+- Read the minimum supported Gradle version from `README.md` and keep it covered
+  by a versioned TestKit scenario.
+- Treat the wrapper as the development runtime, not as the consumer floor.
+- Read the build JDK and bytecode targets from `BuildSettings`; read Kotlin
+  language and API levels from `jvm-module.gradle.kts`.
+- Keep plugin standard-library dependencies `compileOnly`. Supply explicit test
+  runtime dependencies where tests need Gradle and Kotlin classes.
 - Avoid Kotlin or Gradle APIs introduced after the supported consumer floor
-  unless guarded by a compatible alternative and covered by versioned TestKit.
-- Change the floor only together with README, build settings, compatibility
-  tests, and publication claims.
+  unless a compatible alternative and versioned TestKit coverage protect their use.
+- Change the floor together with `README.md`, compatibility tests, relevant
+  build settings, and publication claims.
 
 ## Kotlin DSL and build logic
 
 - Prefer typed Kotlin DSL accessors and typed task registration.
-- Keep reusable module policy in convention plugins rather than copying blocks
-  between projects.
+- Keep reusable module policy in convention plugins rather than copying blocks between projects.
 - Keep dependency coordinates centralized only when that improves ownership;
   avoid abstraction for a single opaque use.
 - Keep public plugin configuration in `build.gradle.kts`. Do not require users
@@ -106,23 +98,18 @@ Verify current versions and paths in the checkout before relying on this map.
 
 ## Cross-platform behavior
 
-- Use Gradle file properties and Java path APIs instead of string concatenation
-  for filesystem paths.
-- Preserve Windows `.exe` naming and Linux executable permissions.
-- Keep path comparisons case and separator aware. Do not infer Windows safety
-  from a Linux-only test.
+- Use Gradle file properties and Java path APIs instead of string concatenation for paths.
+- Preserve Windows `.exe` naming and Linux/macOS executable permissions.
+- Keep path comparisons case- and separator-aware. Do not use a probe on one
+  supported operating system as proof for another.
 - Avoid shell-specific execution; pass executable and arguments separately.
-- Preserve stable argument ordering and messages when tests or users rely on
-  them.
-- Add platform conditions only for genuinely unsupported host behavior, not to
-  hide portable failures.
+- Preserve stable argument ordering and messages when tests or users rely on them.
+- Add platform conditions only for unsupported host behavior; do not hide portable failures.
 
 ## Publication
 
-- Keep `io.spine.embed-code` and its implementation class stable unless a
-  migration is explicitly requested.
-- Keep display name, description, website, VCS URL, and tags consistent with
-  README terminology.
+- Keep `io.spine.embed-code` and its implementation class stable unless migration is requested.
+- Keep display name, description, website, VCS URL, and tags consistent with README terminology.
 - Keep Maven artifact ID, POM name, description, license, developers, and SCM
   coordinates aligned with the plugin declaration.
 - Keep `LICENSE` in published JARs and keep sources and Javadoc artifacts.
@@ -135,17 +122,15 @@ Verify current versions and paths in the checkout before relying on this map.
 - Use TestKit functional tests for plugin application, DSL wiring, task
   dependencies, task-name collisions, help output, configuration-cache reuse,
   publication-facing behavior, and real Gradle failures.
-- Keep a TestKit probe on Gradle 8.14.4 for the minimum consumer contract.
+- Keep a versioned TestKit probe on the minimum supported Gradle version.
 - Assert task outcomes, generated files, process arguments, and actionable
   output rather than internal registration details alone.
-- Run focused test classes while iterating, then unit tests, functional tests,
-  `validatePlugins`, and `check`.
+- Run focused tests while iterating, then unit and functional tests, `validatePlugins`, and `check`.
 
 ## Repository exclusions
 
-- Do not add configuration-repository filtering copied from a shared
-  organization build unless this repository adopts that policy explicitly.
+- Preserve `FAIL_ON_PROJECT_REPOS` in `settings.gradle.kts`; do not add
+  organization-wide repository content filters unless this repository explicitly adopts them.
 - Do not require dependency group names to contain `spine`.
-- Do not expose `installEmbedCode` in the standard grouped task list merely for
-  consistency. Its hidden helper status is intentional; `checkEmbedding` and
-  `embedCode` are the user-facing tasks.
+- Keep `installEmbedCode` ungrouped and absent from the standard task list; keep
+  `checkEmbedding` and `embedCode` as the user-facing tasks.

@@ -1,15 +1,15 @@
 ---
 name: writer
 description: >-
-  Use when creating or revising README.md, PROJECT.md, AGENTS.md, skill routes,
-  Markdown, Kotlin KDoc, Gradle task descriptions, public errors, or explanatory
-  comments; write verified project documentation in the Spine style.
+  Use when creating, reviewing, or revising README.md, PROJECT.md, AGENTS.md,
+  skill routes, Markdown, Kotlin KDoc, Gradle task descriptions, public errors,
+  or explanatory comments; write verified project documentation in the Spine style.
 ---
 
 # Documentation writer
 
 Read the [project context](../../../PROJECT.md) and the
-[writing style](../../guidelines/writing-style.md) before editing.
+[writing style](../../guidelines/writing-style.md) before reviewing or editing.
 
 ## Establish the audience and owner
 
@@ -17,8 +17,7 @@ Read the [project context](../../../PROJECT.md) and the
 - Prefer updating the document that already owns the topic.
 - Keep `README.md` focused on the user problem, setup, Kotlin DSL configuration,
   tasks, and short contributor commands.
-- Keep `PROJECT.md` focused on stable project context and architecture,
-  compatibility, and source-of-truth pointers.
+- Keep `PROJECT.md` focused on stable architecture, compatibility, context, and source pointers.
 - Keep `AGENTS.md`, skill descriptions, and other agent routes focused on dispatch and
   repository-wide policy. Link to the owning skill instead of duplicating its guidance.
 - Keep KDoc with its declaration, task descriptions with their task registrations, and
