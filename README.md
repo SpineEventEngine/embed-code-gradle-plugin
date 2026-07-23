@@ -113,8 +113,9 @@ during installation. This local check does not require another release or
 checksum-metadata request. If the executable was modified, the plugin restores
 it from the authenticated cached release asset, or fails safely when that asset
 cannot be authenticated offline. Run `clean` or remove that directory to check
-for a newer release. Changing the configured version selects another cache
-entry.
+for a newer release. Changing the configured `version` selects a separate cache
+entry. If that entry does not already contain a verified installation, the
+plugin downloads and verifies the selected release while online.
 
 To use a specific Embed Code application release, add its exact release tag to the extension:
 

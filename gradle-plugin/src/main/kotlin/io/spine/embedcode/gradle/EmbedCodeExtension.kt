@@ -50,6 +50,7 @@ public abstract class EmbedCodeExtension {
      *
      * Tags must start with an ASCII letter or digit and may then contain only letters,
      * digits, dots, hyphens, underscores, plus signs, or tildes.
+     * Tags containing `/` are unsupported because the tag is used as a release URL segment.
      */
     public abstract val version: Property<String>
 
