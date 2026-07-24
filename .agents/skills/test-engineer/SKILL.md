@@ -1,6 +1,6 @@
 ---
 name: test-engineer
-description: >
+description: >-
   Use for adding, changing, diagnosing, or reviewing Kotlin tests in this
   repository, including JUnit Jupiter unit specs, Gradle TestKit functional
   specs, bug reproductions, and security or compatibility regressions.
