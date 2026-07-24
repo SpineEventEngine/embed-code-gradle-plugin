@@ -1,0 +1,21 @@
+complexity:
+  LargeClass:
+    excludes:
+      - '**/test/**'
+      - '**/functionalTest/**'
+  TooManyFunctions:
+    excludes:
+      - '**/test/**'
+      - '**/functionalTest/**'
+
+naming:
+  FunctionNaming:
+    excludes:
+      - '**/test/**'
+      - '**/functionalTest/**'
+
+style:
+  MagicNumber:
+    excludes:
+      - '**/test/**'
+      - '**/functionalTest/**'
