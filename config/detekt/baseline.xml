@@ -4,7 +4,6 @@
   <CurrentIssues>
     <ID>LongMethod:EmbedCodePlugin.kt:EmbedCodePlugin$override fun apply</ID>
     <ID>LongMethod:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$@TaskAction public fun install</ID>
-    <ID>MagicNumber:Checksum.kt:3</ID>
     <ID>MagicNumber:InstallEmbedCodeTask.kt:InstallEmbedCodeTask.Companion$200</ID>
     <ID>MagicNumber:InstallEmbedCodeTask.kt:InstallEmbedCodeTask.Companion$299</ID>
     <ID>ReturnCount:Checksum.kt:internal fun githubReleaseApi: URI?</ID>

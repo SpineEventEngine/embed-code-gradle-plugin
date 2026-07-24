@@ -1189,8 +1189,9 @@ internal class EmbedCodePluginSpec {
         server.createContext("/releases/download/") { exchange ->
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
             downloads.incrementAndGet()
-            val asset = releaseDirectory.resolve("download").resolve(relativePath).normalize()
-            if (!asset.startsWith(releaseDirectory.resolve("download")) || !Files.isRegularFile(asset)) {
+            val downloadDirectory = releaseDirectory.resolve("download")
+            val asset = downloadDirectory.resolve(relativePath).normalize()
+            if (!asset.startsWith(downloadDirectory) || !Files.isRegularFile(asset)) {
                 exchange.sendResponseHeaders(404, -1)
             } else {
                 val content = Files.readAllBytes(asset)
