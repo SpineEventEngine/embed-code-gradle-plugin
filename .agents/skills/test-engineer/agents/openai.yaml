@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Engineer"
+  short_description: "Write focused JUnit and TestKit coverage"
+  default_prompt: "Use $test-engineer to add focused regression coverage for this change."

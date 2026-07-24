@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gradle Engineer"
+  short_description: "Build robust Gradle plugin, build logic, and CI"
+  default_prompt: "Use $gradle-engineer to implement this Gradle, build-logic, or CI change."

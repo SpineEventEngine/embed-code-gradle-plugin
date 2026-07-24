@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Engineer"
+  short_description: "Protect download, cache, and filesystem trust"
+  default_prompt: "Use $security-engineer to implement or assess this security-sensitive change."
