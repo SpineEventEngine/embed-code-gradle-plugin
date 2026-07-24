@@ -65,6 +65,7 @@ internal class EmbedCodePlatformSpec {
             assertEquals(
                 EmbedCodePlatform("embed-code-linux", "embed-code-linux"),
                 EmbedCodePlatform.detect("Linux", "amd64", releaseTag),
+                releaseTag,
             )
         }
     }
