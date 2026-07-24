@@ -33,5 +33,4 @@ object Detekt {
 
     // The alpha version is used, because latest stable version doesn't support JDK 25.
     const val version = "2.0.0-alpha.5"
-    const val id = "dev.detekt"
 }

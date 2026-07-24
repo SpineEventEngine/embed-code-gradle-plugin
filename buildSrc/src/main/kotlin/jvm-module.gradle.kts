@@ -34,10 +34,9 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     `java-library`
+    id("dev.detekt")
     kotlin("jvm")
 }
-
-apply(plugin = Detekt.id)
 
 fun jvmTarget(version: Int): JvmTarget = JvmTarget.fromTarget(version.toString())
 

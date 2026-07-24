@@ -32,10 +32,6 @@ complexity:
     excludes: *testFiles
   TooManyFunctions:
     excludes:
-      - '**/*Exts.kt'
-      - '**/*Extensions.kt'
-      - '**/*View.kt'
-      - '**/*Projection.kt'
       - '**/*Test.kt'
       - '**/*Spec.kt'
   LongMethod:
