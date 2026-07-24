@@ -126,8 +126,8 @@ A test passing on the build JDK alone does not prove Java 17 consumer compatibil
 Prefer this order:
 
 ```bash
-./gradlew :gradle-plugin:test --tests io.spine.embedcode.gradle.SubjectSpec
-./gradlew :gradle-plugin:functionalTest --tests io.spine.embedcode.gradle.PluginSpec
+./gradlew :gradle-plugin:test --tests io.spine.embedcode.gradle.EmbedCodeVersionSpec
+./gradlew :gradle-plugin:functionalTest --tests io.spine.embedcode.gradle.EmbedCodePluginSpec
 ./gradlew check
 ```
 

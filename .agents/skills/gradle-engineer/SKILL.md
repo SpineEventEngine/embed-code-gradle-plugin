@@ -2,9 +2,10 @@
 name: gradle-engineer
 description: >-
   Apply repository-specific Gradle engineering policy when changing or reviewing
-  build scripts, buildSrc, Kotlin DSL, plugin, extension, or task APIs, lazy
-  configuration, task state, configuration-cache behavior, TestKit coverage,
-  consumer compatibility, or publication metadata.
+  build scripts, buildSrc, Kotlin DSL, GitHub Actions workflows, CI configuration,
+  plugin, extension, or task APIs, lazy configuration, task state,
+  configuration-cache behavior, TestKit coverage, consumer compatibility,
+  or publication metadata.
 ---
 
 # Gradle engineering
@@ -22,6 +23,13 @@ task state, consumer compatibility, and cross-platform behavior as public contra
 4. Read [Gradle practices](references/gradle-practices.md) before editing; use it
    as the source of truth for Gradle implementation and verification policy.
 5. Clarify only material ambiguity in the public DSL, compatibility floor, or test target.
+
+## Preserve CI behavior
+
+- Read each changed workflow and the Gradle configuration it invokes in full.
+- Preserve least-privilege permissions, supported operating-system coverage,
+  compatibility toolchains, and wrapper-based execution unless the request changes them.
+- Keep CI commands aligned with local verification and publication tasks.
 
 ## Cross-domain work
 
