@@ -97,6 +97,38 @@ Load skills directly from `.agents/skills/`.
 
         self.assertEqual([], self._messages())
 
+    def test_reports_missing_required_paths(self) -> None:
+        """Reject absent agent entry points and the canonical skills directory."""
+
+        for relative_path in (
+            "AGENTS.md",
+            "PROJECT.md",
+            "CLAUDE.md",
+            ".github/copilot-instructions.md",
+        ):
+            with self.subTest(relative_path=relative_path):
+                path = self.root / relative_path
+                content = path.read_text(encoding="utf-8")
+                path.unlink()
+                try:
+                    self.assertIn(
+                        f"{relative_path}:1: required file is missing",
+                        self._messages(),
+                    )
+                finally:
+                    self._write(relative_path, content)
+
+        skills_directory = self.root / ".agents/skills"
+        unavailable_directory = self.root / ".agents/unavailable-skills"
+        skills_directory.rename(unavailable_directory)
+        try:
+            self.assertIn(
+                ".agents/skills:1: required directory is missing",
+                self._messages(),
+            )
+        finally:
+            unavailable_directory.rename(skills_directory)
+
     def test_reports_orphaned_and_unknown_skill_routes(self) -> None:
         """Reject skills absent from the index and routes without directories."""
 
@@ -208,6 +240,49 @@ Read only this file.
         self.assertTrue(
             any("Copilot route must link to `.agents/skills/`" in message
                 for message in messages)
+        )
+
+    def test_reports_unsupported_and_misordered_frontmatter(self) -> None:
+        """Reject unsupported keys and enforce the canonical key order."""
+
+        skill_file = self.root / ".agents/skills/alpha/SKILL.md"
+        valid_skill = skill_file.read_text(encoding="utf-8")
+
+        self._write(
+            ".agents/skills/alpha/SKILL.md",
+            valid_skill.replace(
+                "  Use for alpha tasks.\n---",
+                "  Use for alpha tasks.\nowner: platform\n---",
+            ),
+        )
+        self.assertTrue(
+            any(
+                "frontmatter key `owner` is not supported" in message
+                for message in self._messages()
+            )
+        )
+
+        self._write(
+            ".agents/skills/alpha/SKILL.md",
+            """\
+---
+description: >-
+  Use for alpha tasks.
+name: alpha
+---
+
+# Alpha
+""",
+        )
+        messages = self._messages()
+        self.assertTrue(
+            any("frontmatter name must be the first entry" in message for message in messages)
+        )
+        self.assertTrue(
+            any(
+                "frontmatter description must immediately follow the name" in message
+                for message in messages
+            )
         )
 
     def test_reports_missing_empty_and_malformed_descriptions(self) -> None:
