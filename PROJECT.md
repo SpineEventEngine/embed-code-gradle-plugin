@@ -27,7 +27,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `gradle-plugin/src/main/templates/`: generated default-version source template.
 - `gradle-plugin/src/test/kotlin/`: focused unit specifications.
 - `gradle-plugin/src/functionalTest/kotlin/`: TestKit consumer-build specifications.
-- `.github/workflows/check.yml`: Ubuntu and Windows build verification.
+- `scripts/check_agent_config.py` and `scripts/tests/`: deterministic validation and tests.
+- `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
 
 ## Runtime flow
@@ -68,8 +69,9 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
-- CI runs the build and publishes the plugin to Maven Local on Ubuntu and Windows. Preserve
-  cross-platform paths, permissions, line endings, and process behavior.
+- CI validates agent configuration on Ubuntu and independently runs the build and publishes
+  the plugin to Maven Local on Ubuntu and Windows. Preserve cross-platform paths, permissions,
+  line endings, and process behavior.
 
 ## Trust boundaries
 

@@ -60,6 +60,10 @@ Combine skills only when their scopes overlap:
 
 ## Verification
 
+- After changing agent documentation, routes, or skills, run
+  `python3 scripts/check_agent_config.py`.
+- After changing the validator, run
+  `python3 -m unittest discover -s scripts/tests -p 'test_*.py'`.
 - Start with the narrowest Gradle task or test that proves the change.
 - Run `./gradlew check` before handing off a completed code or test change unless the task is
   documentation-only or a narrower check is explicitly sufficient.
