@@ -126,6 +126,42 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
+    fun `install the Linux ZIP release asset`() {
+        val releaseTag = "v1.2.5"
+        val asset = releaseDirectory.resolve(
+            "download/$releaseTag/embed-code-linux.zip",
+        )
+        Files.createDirectories(asset.parent)
+        ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
+            zip.putNextEntry(ZipEntry("embed-code-linux"))
+            zip.write("Linux executable".toByteArray())
+            zip.closeEntry()
+        }
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(installedExecutable(releaseTag)) shouldBe "Linux executable"
+    }
+
+    @Test
+    fun `install a bare Linux asset from a release published before ZIP packaging`() {
+        val asset = releaseDirectory.resolve(
+            "download/$TEST_RELEASE_TAG/embed-code-linux",
+        )
+        Files.writeString(asset, "Legacy Linux executable")
+        writeBuildFile(sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(installedExecutable()) shouldBe "Legacy Linux executable"
+    }
+
+    @Test
     fun `reuse the verified default executable without another download`() {
         val downloads = AtomicInteger()
         val server = startReleaseServer(downloads)
@@ -340,6 +376,7 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
+            TEST_RELEASE_TAG,
         )
         val taskTemporaryDirectory = projectDirectory.resolve("build/tmp/installEmbedCode")
         Files.createDirectories(taskTemporaryDirectory)
@@ -757,6 +794,7 @@ internal class EmbedCodePluginSpec {
             val platform = EmbedCodePlatform.detect(
                 System.getProperty("os.name"),
                 System.getProperty("os.arch"),
+                TEST_RELEASE_TAG,
             )
             val source = "$baseUrl/download/$TEST_RELEASE_TAG/${platform.assetName}"
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
@@ -1003,6 +1041,23 @@ internal class EmbedCodePluginSpec {
     }
 
     /**
+     * Overrides the installation task to select the Linux AMD64 release asset.
+     */
+    private fun selectLinuxReleaseAsset() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                operatingSystem.set("Linux")
+                architecture.set("amd64")
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+    }
+
+    /**
      * Returns the cache directory for [releaseTag].
      */
     private fun installationDirectory(releaseTag: String = TEST_RELEASE_TAG): Path =
@@ -1070,6 +1125,7 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
+            tag,
         )
         val versionDirectory = root.resolve("download/$tag")
         Files.createDirectories(versionDirectory)
@@ -1117,6 +1173,7 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
+            tag.trim(),
         )
         val asset = root.resolve("download/${tag.trim()}/${platform.assetName}")
         return sha256(asset)
