@@ -141,31 +141,26 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         )
         val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())
-        val installationRoot = installationDirectory.get().asFile.toPath()
-            .toAbsolutePath()
-            .normalize()
-        val destination = requireInsideInstallationDirectory(
+        val installation = InstallationDirectory(
+            installationDirectory.get().asFile.toPath(),
+        )
+        val destination = installation.requireInside(
             executableFile.get().asFile.toPath(),
-            installationRoot,
         )
-        val cachedAsset = requireInsideInstallationDirectory(
+        val cachedAsset = installation.requireInside(
             cachedAssetFile.get().asFile.toPath(),
-            installationRoot,
         )
-        val assetChecksum = requireInsideInstallationDirectory(
+        val assetChecksum = installation.requireInside(
             assetChecksumFile.get().asFile.toPath(),
-            installationRoot,
         )
-        val executableChecksum = requireInsideInstallationDirectory(
+        val executableChecksum = installation.requireInside(
             executableChecksumFile.get().asFile.toPath(),
-            installationRoot,
         )
-        val sourceIdentity = requireInsideInstallationDirectory(
+        val sourceIdentity = installation.requireInside(
             sourceIdentityFile.get().asFile.toPath(),
-            installationRoot,
         )
-        prepareInstallationDirectory(installationRoot)
-        requireNoSymbolicLinks(destination, installationRoot)
+        installation.prepare()
+        installation.requireNoSymbolicLinks(destination)
 
         if (offline.get()) {
             reuseOfflineInstallation(
@@ -179,7 +174,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 baseUrl,
                 asset,
                 configuredSha256,
-                installationRoot,
+                installation,
             )
             return
         }
@@ -192,7 +187,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 baseUrl,
                 asset,
                 configuredSha256,
-                installationRoot,
+                installation,
             )
         ) {
             logger.lifecycle(
@@ -218,7 +213,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 sourceIdentity,
                 expectedSourceIdentity,
                 expectedAssetSha256,
-                installationRoot,
+                installation,
             )
         ) {
             logger.lifecycle(
@@ -232,7 +227,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         val download = Files.createTempFile(temporaryDir.toPath(), "downloaded-asset-", ".tmp")
 
         try {
-            createDirectoriesSafely(destination.parent, installationRoot)
+            installation.createDirectoriesSafely(destination.parent)
             logger.lifecycle("Downloading Embed Code {} from {}", releaseTag, source)
             try {
                 download(source, download)
@@ -247,7 +242,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 )
             }
             logger.info("Verified SHA-256 digest `{}` for {}.", downloadedSha256, asset)
-            moveSafely(download, cachedAsset, installationRoot)
+            moveSafely(download, cachedAsset, installation)
             val installed = installFromVerifiedAsset(
                 platform,
                 destination,
@@ -257,7 +252,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 sourceIdentity,
                 expectedSourceIdentity,
                 expectedAssetSha256,
-                installationRoot,
+                installation,
             )
             if (!installed) {
                 throw GradleException(
@@ -290,7 +285,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         baseUrl: String,
         asset: String,
         configuredSha256: String?,
-        installationRoot: Path,
+        installation: InstallationDirectory,
     ) {
         if (isPreviouslyVerifiedInstallation(
                 destination,
@@ -301,7 +296,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 baseUrl,
                 asset,
                 configuredSha256,
-                installationRoot,
+                installation,
             )
         ) {
             logger.lifecycle(
@@ -326,7 +321,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 sourceIdentity,
                 expectedSourceIdentity,
                 expectedAssetSha256,
-                installationRoot,
+                installation,
             )
         ) {
             throw GradleException(
@@ -346,15 +341,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
     private fun isLocallyVerifiedExecutable(
         destination: Path,
         executableChecksum: Path,
-        installationRoot: Path,
+        installation: InstallationDirectory,
     ): Boolean {
-        requireNoSymbolicLinks(destination, installationRoot)
+        installation.requireNoSymbolicLinks(destination)
         if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
             return false
         }
         val storedExecutableSha256 = readStoredSha256(
             executableChecksum,
-            installationRoot,
+            installation,
         ) ?: return false
         return try {
             sha256(destination) == storedExecutableSha256
@@ -375,13 +370,13 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         baseUrl: String,
         asset: String,
         configuredSha256: String?,
-        installationRoot: Path,
+        installation: InstallationDirectory,
     ): Boolean {
         val expectedSourceIdentity = releaseAssetIdentity(baseUrl, releaseTag, asset)
-        if (readStoredValue(sourceIdentity, installationRoot) != expectedSourceIdentity) {
+        if (readStoredValue(sourceIdentity, installation) != expectedSourceIdentity) {
             return false
         }
-        val storedAssetSha256 = readStoredSha256(assetChecksum, installationRoot)
+        val storedAssetSha256 = readStoredSha256(assetChecksum, installation)
             ?: return false
         if (configuredSha256 != null && storedAssetSha256 != configuredSha256) {
             return false
@@ -389,15 +384,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         return isLocallyVerifiedExecutable(
             destination,
             executableChecksum,
-            installationRoot,
+            installation,
         )
     }
 
     /**
      * Reads a valid SHA-256 cache marker, or returns `null` when it is absent or malformed.
      */
-    private fun readStoredSha256(file: Path, installationRoot: Path): String? {
-        val value = readStoredValue(file, installationRoot) ?: return null
+    private fun readStoredSha256(file: Path, installation: InstallationDirectory): String? {
+        val value = readStoredValue(file, installation) ?: return null
         return runCatching { normalizeSha256(value) }.getOrNull()
     }
 
@@ -435,9 +430,9 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         sourceIdentity: Path,
         expectedSourceIdentity: String,
         expectedAssetSha256: String,
-        installationRoot: Path,
+        installation: InstallationDirectory,
     ): Boolean {
-        requireNoSymbolicLinks(cachedAsset, installationRoot)
+        installation.requireNoSymbolicLinks(cachedAsset)
         if (!Files.isRegularFile(cachedAsset, LinkOption.NOFOLLOW_LINKS)) {
             return false
         }
@@ -463,13 +458,16 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 throw GradleException("Could not make `$prepared` executable.")
             }
             val preparedExecutableSha256 = sha256(prepared)
-            moveSafely(prepared, destination, installationRoot)
-            writeStoredValue(assetChecksum, expectedAssetSha256, installationRoot)
-            writeStoredValue(executableChecksum, preparedExecutableSha256, installationRoot)
-            writeStoredValue(sourceIdentity, expectedSourceIdentity, installationRoot)
+            moveSafely(prepared, destination, installation)
+            writeStoredValue(assetChecksum, expectedAssetSha256, installation)
+            writeStoredValue(executableChecksum, preparedExecutableSha256, installation)
+            writeStoredValue(sourceIdentity, expectedSourceIdentity, installation)
             return true
-        } catch (_: IOException) {
-            return false
+        } catch (exception: IOException) {
+            throw GradleException(
+                "Could not restore the verified Embed Code asset from `$cachedAsset`.",
+                exception,
+            )
         } finally {
             Files.deleteIfExists(stagedAsset)
             preparedExecutable?.let(Files::deleteIfExists)
@@ -481,48 +479,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         const val CONNECT_TIMEOUT_MILLIS = 30_000
         const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
-
-        /**
-         * Normalizes [path] and verifies that it is below [installationDirectory].
-         */
-        fun requireInsideInstallationDirectory(
-            path: Path,
-            installationDirectory: Path,
-        ): Path {
-            val root = installationDirectory.toAbsolutePath().normalize()
-            val normalizedPath = path.toAbsolutePath().normalize()
-            if (normalizedPath == root || !normalizedPath.startsWith(root)) {
-                throw GradleException(
-                    "Embed Code installation path `$normalizedPath` must remain inside `$root`.",
-                )
-            }
-            return normalizedPath
-        }
-
-        /**
-         * Creates the installation root and rejects a symlink or non-directory root.
-         */
-        fun prepareInstallationDirectory(installationDirectory: Path) {
-            try {
-                if (!Files.exists(installationDirectory, LinkOption.NOFOLLOW_LINKS)) {
-                    Files.createDirectories(installationDirectory)
-                }
-            } catch (exception: IOException) {
-                throw GradleException(
-                    "Could not create Embed Code installation directory `$installationDirectory`.",
-                    exception,
-                )
-            }
-            if (
-                isRedirectingFileSystemEntry(installationDirectory) ||
-                !Files.isDirectory(installationDirectory, LinkOption.NOFOLLOW_LINKS)
-            ) {
-                throw GradleException(
-                    "Embed Code installation directory `$installationDirectory` " +
-                        "must be a real directory, not a symbolic link or redirecting entry.",
-                )
-            }
-        }
 
         /**
          * Detects symbolic links and directory redirects such as Windows junctions.
@@ -545,77 +501,130 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         }
 
         /**
-         * Rejects symbolic links in every existing component from the installation root.
+         * Owns the normalized installation root and validates paths used by one task action.
+         *
+         * The task checks all configured paths before [prepare] creates the root. Later
+         * operations reuse this instance so root normalization and preparation are not repeated.
          */
-        fun requireNoSymbolicLinks(path: Path, installationDirectory: Path) {
-            val root = installationDirectory.toAbsolutePath().normalize()
-            val normalizedPath = requireInsideInstallationDirectory(path, root)
-            prepareInstallationDirectory(root)
-            var current = root
-            root.relativize(normalizedPath).forEach { component ->
-                current = current.resolve(component)
-                if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                    if (isRedirectingFileSystemEntry(current)) {
-                        throw GradleException(
-                            "Embed Code installation path `$current` must not be a " +
-                                "symbolic link or redirecting filesystem entry.",
-                        )
-                    }
-                    if (
-                        current != normalizedPath &&
-                        !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
-                    ) {
-                        throw GradleException(
-                            "Embed Code installation path component `$current` " +
-                                "must be a directory.",
-                        )
-                    }
-                }
-            }
-        }
+        private class InstallationDirectory(path: Path) {
 
-        /**
-         * Creates [directory] component by component without following symbolic links.
-         */
-        fun createDirectoriesSafely(directory: Path, installationDirectory: Path) {
-            val root = installationDirectory.toAbsolutePath().normalize()
-            val normalizedDirectory = directory.toAbsolutePath().normalize()
-            if (normalizedDirectory != root) {
-                requireInsideInstallationDirectory(normalizedDirectory, root)
+            private val root = path.toAbsolutePath().normalize()
+
+            /**
+             * Normalizes [path] and verifies that it is a strict descendant of the root.
+             */
+            fun requireInside(path: Path): Path {
+                val normalizedPath = path.toAbsolutePath().normalize()
+                if (normalizedPath == root || !normalizedPath.startsWith(root)) {
+                    throw GradleException(
+                        "Embed Code installation path `$normalizedPath` " +
+                            "must remain inside `$root`.",
+                    )
+                }
+                return normalizedPath
             }
-            prepareInstallationDirectory(root)
-            var current = root
-            root.relativize(normalizedDirectory).forEach { component ->
-                current = current.resolve(component)
-                if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                    if (
-                        isRedirectingFileSystemEntry(current) ||
-                        !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
-                    ) {
-                        throw GradleException(
-                            "Embed Code installation directory `$current` " +
-                                "must be a real directory, not a symbolic link " +
-                                "or redirecting entry.",
-                        )
+
+            /**
+             * Creates the installation root and rejects a symlink or non-directory root.
+             */
+            fun prepare() {
+                try {
+                    if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+                        Files.createDirectories(root)
                     }
-                } else {
-                    try {
-                        Files.createDirectory(current)
-                    } catch (exception: IOException) {
-                        throw GradleException(
-                            "Could not create Embed Code installation directory `$current`.",
-                            exception,
-                        )
+                } catch (exception: IOException) {
+                    throw GradleException(
+                        "Could not create Embed Code installation directory `$root`.",
+                        exception,
+                    )
+                }
+                if (
+                    isRedirectingFileSystemEntry(root) ||
+                    !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)
+                ) {
+                    throw GradleException(
+                        "Embed Code installation directory `$root` must be a real directory, " +
+                            "not a symbolic link or redirecting entry.",
+                    )
+                }
+            }
+
+            /**
+             * Rejects symbolic links in every existing component from the installation root.
+             */
+            fun requireNoSymbolicLinks(path: Path) {
+                val normalizedPath = requireInside(path)
+                var current = root
+                root.relativize(normalizedPath).forEach { component ->
+                    current = current.resolve(component)
+                    if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
+                        if (isRedirectingFileSystemEntry(current)) {
+                            throw GradleException(
+                                "Embed Code installation path `$current` must not be a " +
+                                    "symbolic link or redirecting filesystem entry.",
+                            )
+                        }
+                        if (
+                            current != normalizedPath &&
+                            !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
+                        ) {
+                            throw GradleException(
+                                "Embed Code installation path component `$current` " +
+                                    "must be a directory.",
+                            )
+                        }
                     }
                 }
             }
-            val realRoot = root.toRealPath()
-            val realDirectory = normalizedDirectory.toRealPath()
-            if (!realDirectory.startsWith(realRoot)) {
-                throw GradleException(
-                    "Embed Code installation directory `$realDirectory` " +
-                        "must remain inside `$realRoot`.",
-                )
+
+            /**
+             * Creates [directory] component by component without following symbolic links.
+             */
+            fun createDirectoriesSafely(directory: Path) {
+                val normalizedDirectory = directory.toAbsolutePath().normalize()
+                if (normalizedDirectory != root) {
+                    requireInside(normalizedDirectory)
+                }
+                var current = root
+                root.relativize(normalizedDirectory).forEach { component ->
+                    current = current.resolve(component)
+                    if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
+                        if (
+                            isRedirectingFileSystemEntry(current) ||
+                            !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
+                        ) {
+                            throw GradleException(
+                                "Embed Code installation directory `$current` " +
+                                    "must be a real directory, not a symbolic link " +
+                                    "or redirecting entry.",
+                            )
+                        }
+                    } else {
+                        try {
+                            Files.createDirectory(current)
+                        } catch (exception: IOException) {
+                            throw GradleException(
+                                "Could not create Embed Code installation directory `$current`.",
+                                exception,
+                            )
+                        }
+                    }
+                }
+                requireRealPathInside(normalizedDirectory)
+            }
+
+            /**
+             * Verifies that [directory] resolves below the real installation root.
+             */
+            private fun requireRealPathInside(directory: Path) {
+                val realRoot = root.toRealPath()
+                val realDirectory = directory.toRealPath()
+                if (!realDirectory.startsWith(realRoot)) {
+                    throw GradleException(
+                        "Embed Code installation directory `$realDirectory` " +
+                            "must remain inside `$realRoot`.",
+                    )
+                }
             }
         }
 
@@ -722,8 +731,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         /**
          * Reads a UTF-8 cache metadata value without following a symbolic link.
          */
-        fun readStoredValue(file: Path, installationDirectory: Path): String? {
-            requireNoSymbolicLinks(file, installationDirectory)
+        fun readStoredValue(file: Path, installation: InstallationDirectory): String? {
+            installation.requireNoSymbolicLinks(file)
             if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
                 return null
             }
@@ -749,10 +758,10 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         fun writeStoredValue(
             file: Path,
             value: String,
-            installationDirectory: Path,
+            installation: InstallationDirectory,
         ) {
-            createDirectoriesSafely(file.parent, installationDirectory)
-            requireNoSymbolicLinks(file, installationDirectory)
+            installation.createDirectoriesSafely(file.parent)
+            installation.requireNoSymbolicLinks(file)
             val temporaryFile = Files.createTempFile(
                 file.parent,
                 ".${file.fileName}-",
@@ -765,7 +774,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                     StandardCharsets.UTF_8,
                     StandardOpenOption.TRUNCATE_EXISTING,
                 )
-                moveSafely(temporaryFile, file, installationDirectory)
+                moveSafely(temporaryFile, file, installation)
             } finally {
                 Files.deleteIfExists(temporaryFile)
             }
@@ -795,11 +804,15 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
          * Moves [source] to a checked installation path.
          */
         @Throws(IOException::class)
-        fun moveSafely(source: Path, destination: Path, installationDirectory: Path) {
-            createDirectoriesSafely(destination.parent, installationDirectory)
-            requireNoSymbolicLinks(destination, installationDirectory)
+        fun moveSafely(
+            source: Path,
+            destination: Path,
+            installation: InstallationDirectory,
+        ) {
+            installation.createDirectoriesSafely(destination.parent)
+            installation.requireNoSymbolicLinks(destination)
             moveAtomically(source, destination)
-            requireNoSymbolicLinks(destination, installationDirectory)
+            installation.requireNoSymbolicLinks(destination)
         }
 
         /**

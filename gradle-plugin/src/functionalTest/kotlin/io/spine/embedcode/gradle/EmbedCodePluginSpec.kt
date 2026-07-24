@@ -428,6 +428,18 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
+    fun `preserve the cause of a verified asset restoration failure`() {
+        val checksumFile = installationDirectory().resolve("asset.sha256")
+        Files.createDirectories(checksumFile)
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.output shouldContain
+            "Could not restore the verified Embed Code asset from"
+        result.output shouldContain "Caused by: java.nio.file."
+    }
+
+    @Test
     fun `require a configured digest to restore a missing executable offline`() {
         runner(":installEmbedCode").build()
         Files.delete(installedExecutable())
