@@ -96,6 +96,9 @@ internal data class EmbedCodePlatform(
 
         /**
          * All releases published before Linux ZIP packaging was introduced.
+         *
+         * The upstream release workflow defines ZIP packaging for subsequent releases.
+         * Update this mapping if that workflow changes.
          */
         private val bareLinuxAssetReleases = setOf("v1.2.3", "v1.2.4")
     }
