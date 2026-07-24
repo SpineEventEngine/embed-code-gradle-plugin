@@ -1,6 +1,6 @@
 ---
 name: kotlin-engineer
-description: >
+description: >-
   Use for implementing, refactoring, explaining, or reviewing Kotlin source and
   Kotlin DSL files (`.kt` and `.kts`) in this repository, especially public
   plugin APIs, Gradle task types, extensions, and build logic.

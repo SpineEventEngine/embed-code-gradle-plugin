@@ -11,6 +11,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  agents-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Python 3.14
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Test Agent Configuration Validator
+        run: python -m unittest discover -s scripts/tests -p "test_*.py"
+
+      - name: Validate Agent Configuration
+        run: python scripts/check_agent_config.py
+
   build:
     strategy:
       fail-fast: false

@@ -45,18 +45,9 @@ Read the [project context](../../../PROJECT.md) and the
 
 ## Write Kotlin documentation
 
-- Give every named type useful KDoc, regardless of visibility. Cover classes, objects,
-  companion objects, interfaces, enums, annotation classes, type aliases, and sealed types.
-- Give every public API useful KDoc, including public constructors, functions,
-  properties, constants, and nested declarations.
-- Document private members only when their intent, invariant, lifecycle, side effect,
-  failure mode, or trust boundary is not obvious from the code.
-- Start with a short behavioral summary. Explain contracts and reasons, not syntax.
-- Use KDoc links such as `[EmbedCodeTask]` for code symbols.
-- Use `@param`, `@return`, and `@throws` only when they add information
-  that the signature and summary do not provide.
-- Preserve useful existing constraints and explanatory comments when restructuring prose.
-- Reject boilerplate that restates a declaration, assignment, or obvious return value.
+Use the [KDoc policy](../kotlin-engineer/references/kotlin-policy.md#kdoc) as the source of
+truth for Kotlin documentation, and apply
+[kotlin-engineer](../kotlin-engineer/SKILL.md) to affected Kotlin source.
 
 ## Write operational text
 
