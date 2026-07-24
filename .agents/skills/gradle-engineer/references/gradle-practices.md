@@ -60,6 +60,33 @@ Verify current versions and paths in the checkout before relying on this map.
 - Override up-to-date behavior only with an explicit invariant; keep the install
   task configured to rerun so it authenticates local installation state.
 
+Classify each property by its role in task state:
+
+```kotlin
+// Correct: configuration is an input, retained cache data is local state,
+// and a secret stays out of task fingerprints.
+@get:Input
+public abstract val version: Property<String>
+
+@get:LocalState
+public abstract val cachedAssetFile: RegularFileProperty
+
+@get:Internal
+public abstract val githubToken: Property<String>
+```
+
+Do not flatten properties with different roles into inputs or outputs:
+
+```kotlin
+// Incorrect: the secret enters task fingerprints, and mutable cache data
+// is presented as a reproducible task output.
+@get:Input
+public abstract val githubToken: Property<String>
+
+@get:OutputFile
+public abstract val cachedAssetFile: RegularFileProperty
+```
+
 ## Configuration cache
 
 - Inject `ExecOperations` and other Gradle services into task types.

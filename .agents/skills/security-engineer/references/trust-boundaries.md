@@ -97,6 +97,30 @@ trust anchors against an actor who can replace both the executable and its marke
 - Fail closed when neither permitted offline path verifies its required state.
 - Never treat a file in the build directory as trusted merely because Gradle is offline.
 
+Require a configured trust anchor before restoring an executable from a retained asset offline.
+In schematic Kotlin, keep staging and use of the verified bytes under one helper:
+
+```kotlin
+// Correct: missing trust data stops recovery before cached bytes are staged.
+val trustedDigest = configuredSha256
+    ?: throw GradleException("Configure `embedCode.sha256` for offline cache recovery.")
+
+restoreFromVerifiedStagedCopy(cachedAsset, trustedDigest)
+```
+
+The helper must copy without following links, verify the staged bytes, restore from that
+same staged file, and delete it on every exit.
+
+Do not make authentication conditional while allowing recovery to continue:
+
+```kotlin
+// Incorrect: a missing digest bypasses verification, and recovery rereads mutable bytes.
+configuredSha256?.let { digest ->
+    verifySha256(cachedAsset, digest)
+}
+restoreExecutable(cachedAsset)
+```
+
 ## Temporary files and promotion
 
 - Create unpredictable download and preparation filenames in the task temporary directory.
