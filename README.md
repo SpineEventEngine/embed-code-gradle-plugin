@@ -3,8 +3,8 @@
 
 # Embed Code Gradle plugin
 
-Gradle plugin for [Embed Code][embed-code], an application that keeps code
-examples in Markdown and HTML synchronized with their source files.
+This Gradle plugin integrates [Embed Code][embed-code], an application that
+keeps code examples in Markdown and HTML synchronized with their source files.
 
 The plugin downloads the released Embed Code executable for the current
 platform, so developers and CI jobs do not have to install it manually.
@@ -83,6 +83,7 @@ embedCode {
     docsPath.set(layout.projectDirectory)
 }
 ```
+
 `codePath` and `namedSource(...)` are mutually exclusive.
 
 ### Execution
@@ -122,7 +123,7 @@ embedCode {
 }
 ```
 
-### GitHub Authorization
+### GitHub authorization
 
 API requests are unauthenticated unless a token provider is configured explicitly:
 

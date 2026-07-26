@@ -18,6 +18,7 @@ Use all matching skills. The links are an index; each frontmatter description de
 - [`gradle-engineer`](.agents/skills/gradle-engineer/SKILL.md)
 - [`test-engineer`](.agents/skills/test-engineer/SKILL.md)
 - [`writer`](.agents/skills/writer/SKILL.md)
+- [`proofread`](.agents/skills/proofread/SKILL.md)
 - [`security-engineer`](.agents/skills/security-engineer/SKILL.md)
 - [`reviewer`](.agents/skills/reviewer/SKILL.md)
 
@@ -51,8 +52,11 @@ Combine skills only when their scopes overlap:
 
 ## Documentation
 
-- Apply the [writer skill](.agents/skills/writer/SKILL.md) and
-  [writing style](.agents/guidelines/writing-style.md) to documentation and user-facing text.
+- Apply the [writer skill](.agents/skills/writer/SKILL.md), the
+  [writing style](.agents/guidelines/writing-style.md), and the
+  [English style](.agents/guidelines/english-style.md) to new or revised user-facing text.
+- Apply the [proofread skill](.agents/skills/proofread/SKILL.md) when checking existing
+  project-owned comments and documentation for English-language errors.
 - Follow the
   [Kotlin KDoc policy](.agents/skills/kotlin-engineer/references/kotlin-policy.md#kdoc)
   for declarations and public APIs.

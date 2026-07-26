@@ -30,6 +30,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `config/detekt/`: project-specific Detekt rules and the baseline for existing findings.
 - `scripts/check_agent_config.py` and `scripts/tests/`: deterministic validation and tests.
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
+- `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
 
 ## Runtime flow
@@ -95,7 +96,7 @@ Apply `gradle-engineer` and `security-engineer` to work spanning Gradle and secu
 - `README.md`: user-facing purpose, requirements, Kotlin DSL, execution, and development commands.
 - `PROJECT.md`: project map, runtime flow, compatibility, test strategy, and trust boundaries.
 - `AGENTS.md`: repository-wide agent operating policy and routing.
-- `.agents/guidelines/writing-style.md`: shared Spine writing and typography rules.
+- `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/*/SKILL.md`: task-specific workflows and project constraints.
 
 Keep user instructions in `README.md`, contributor and architecture context here, and agent

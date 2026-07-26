@@ -141,7 +141,7 @@ restoreExecutable(cachedAsset)
 - Add explicit handling and probes before accepting archives with ambiguous
   duplicate basenames, unexpected link metadata, or resource-exhaustion risk.
 - Do not report zip-slip from a `../` entry alone when the implementation never
-  uses the entry path as an output path; prove an out-of-bound write.
+  uses the entry path as an output path; prove an out-of-bounds write.
 
 ## Path containment
 
