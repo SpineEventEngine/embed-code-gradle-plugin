@@ -24,32 +24,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     `kotlin-dsl`
 }
 
-/**
- * Version of the Kotlin Gradle plugin.
- *
- * `buildSrc` needs this version before its dependency objects are compiled.
- * Keep in sync with `io.spine.embedcode.gradle.dependency.Kotlin.version`.
- */
+// These bootstrap versions are declared here because `buildSrc` needs them
+// before its sources compile.
 val kotlinVersion = "2.4.10"
-
-/**
- * Version of the Gradle Plugin Publish plugin.
- *
- * `buildSrc` needs this version before its dependency objects are compiled.
- * Keep in sync with `io.spine.embedcode.gradle.dependency.PluginPublish.version`.
- */
 val pluginPublishVersion = "2.1.1"
-
-/**
- * Version of the Detekt Gradle plugin.
- *
- * `buildSrc` needs this version before its dependency objects are compiled.
- * Keep in sync with `io.spine.embedcode.gradle.dependency.Detekt.version`.
- */
 val detektVersion = "2.0.0-alpha.5"
 
 dependencies {
@@ -66,4 +50,13 @@ dependencies {
 kotlin {
     // `buildSrc` needs its toolchain before `BuildSettings` is compiled.
     jvmToolchain(25)
+    compilerOptions {
+        // Keep the build logic loadable by every JVM supported by Gradle 9.
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }

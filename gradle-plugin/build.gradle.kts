@@ -25,7 +25,6 @@
  */
 
 import io.spine.embedcode.gradle.BuildSettings
-import io.spine.embedcode.gradle.dependency.Kotlin
 import io.spine.embedcode.gradle.dependency.PluginPublish
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
@@ -42,10 +41,10 @@ apply(plugin = PluginPublish.id)
 
 dependencies {
     // Gradle supplies Kotlin at runtime, so the plugin does not publish the standard library.
-    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
-    testCompileOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+    compileOnly(kotlin("stdlib"))
+    testCompileOnly(kotlin("stdlib"))
     // Unit tests no longer inherit TestKit's Gradle and Kotlin runtime; supply both explicitly.
-    testRuntimeOnly("org.jetbrains.kotlin:kotlin-stdlib:${Kotlin.version}")
+    testRuntimeOnly(kotlin("stdlib"))
     testRuntimeOnly(gradleApi())
 }
 

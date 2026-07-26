@@ -27,7 +27,6 @@
 import dev.detekt.gradle.Detekt as DetektTask
 import dev.detekt.gradle.extensions.DetektExtension
 import io.spine.embedcode.gradle.BuildSettings
-import io.spine.embedcode.gradle.dependency.Detekt
 import io.spine.embedcode.gradle.dependency.JUnit
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -63,7 +62,6 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 extensions.configure<DetektExtension> {
-    toolVersion.set(Detekt.version)
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
     baseline.set(rootProject.layout.projectDirectory.file("config/detekt/baseline.xml"))
     buildUponDefaultConfig.set(true)
@@ -81,8 +79,8 @@ tasks.withType<DetektTask>().configureEach {
 }
 
 dependencies {
-    testImplementation(JUnit.Jupiter.lib)
-    testRuntimeOnly(JUnit.PlatformLauncher.lib)
+    testImplementation(JUnit.jupiter)
+    testRuntimeOnly(JUnit.platformLauncher)
 }
 
 tasks.test {

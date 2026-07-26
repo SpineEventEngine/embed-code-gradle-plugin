@@ -32,15 +32,10 @@ package io.spine.embedcode.gradle.dependency
 object JUnit {
 
     const val version = "6.1.2"
-    private const val group = "org.junit.jupiter"
+    private const val jupiterGroup = "org.junit.jupiter"
+    private const val platformGroup = "org.junit.platform"
 
-    // https://github.com/junit-team/junit5
-    object Jupiter {
-        const val lib = "$group:junit-jupiter:$version"
-    }
-
-    // https://github.com/junit-team/junit5/tree/main/junit-platform-launcher
-    object PlatformLauncher {
-        const val lib = "org.junit.platform:junit-platform-launcher:${JUnit.version}"
-    }
+    // JUnit 6 releases Jupiter and Platform artifacts under the same version.
+    const val jupiter = "$jupiterGroup:junit-jupiter:$version"
+    const val platformLauncher = "$platformGroup:junit-platform-launcher:$version"
 }
