@@ -31,6 +31,6 @@ package io.spine.embedcode.gradle.dependency
  */
 object Detekt {
 
-    // The alpha version is used, because latest stable version doesn't support JDK 25.
+    // The alpha version is used because the latest stable version does not support JDK 25.
     const val version = "2.0.0-alpha.5"
 }
