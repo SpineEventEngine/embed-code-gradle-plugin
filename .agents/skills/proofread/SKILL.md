@@ -12,8 +12,8 @@ description: >-
   sweeps every project-owned file, module by module; a path argument scopes the
   sweep to one directory. Stateless — no memory sentinel. Reports every change
   grouped by catalog topic so recurring error classes surface for review. Use
-  once per repo with `all` after a fresh `config` pull, then on each branch to
-  catch new occurrences, or against a named module.
+  once per repo with `all`, then on each branch to catch new occurrences, or
+  against a named module.
 ---
 
 # Proofread
@@ -52,8 +52,8 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
      never reads a file that no longer exists.
    - **Argument is exactly `all` → full-sweep mode.** Scan every
      project-owned file in the repository. Enumerate candidates with
-     `git ls-files`. Also perform the **legacy cleanup** in step 4. (To
-     scope a directory literally named `all`, pass it as `./all`.)
+     `git ls-files`. (To scope a directory literally named `all`, pass it
+     as `./all`.)
    - **Argument is a path → scoped-sweep mode.** Scan the project-owned
      files under that directory or file: `git ls-files -- <path>`. Use this
      to stage a full sweep over a very large repository one module at a time.
@@ -75,15 +75,7 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
    changes. Keep them, then intersect the whole list with the file-type filter.
 
    **Then drop everything the project does not own**, per
-   `.agents/guidelines/project-owned-files.md` — submodule contents and, in
-   a repo that consumes `config`, the config-distributed files. This skill
-   processes prose, so of the config-distributed set it encounters the
-   Markdown members (`AGENTS.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`,
-   `.junie/guidelines.md`, `.github/copilot-instructions.md`, and the
-   conditional `CONTRIBUTING.md`) and the source members under `buildSrc/`
-   (except `buildSrc/src/main/kotlin/module.gradle.kts`). Apply the skip in
-   every mode; in the `config` and `agents` source repos the config rule is
-   inert (those files are project-owned there).
+   `.agents/guidelines/project-owned-files.md`. Apply the skip in every mode.
 
 3. **Scan and fix each file.** Restrict edits to **prose only**, per the
    “Where English prose lives” and “Never edit” sections of
@@ -115,15 +107,7 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
    unchanged and add it to `Skipped[]` with the catalog topic and reason
    `ambiguous` (see **Report**).
 
-4. **Legacy cleanup (full-sweep mode only).** `proofread` supersedes the
-   retired `which-fixer` skill, whose which/that rule is now a catalog
-   topic. If the repository still carries
-   `which-fixer`'s bulk-sweep marker `.agents/memory/which-fixer-applied.md`,
-   delete that file, and remove its pointer line from
-   `.agents/memory/MEMORY.md` (the line linking `which-fixer-applied.md`).
-   Leave the rest of `MEMORY.md` untouched. If neither exists, do nothing.
-
-5. **Report.** Produce the summary in the **Report** section below.
+4. **Report.** Produce the summary in the **Report** section below.
 
 ## Repo notes
 
@@ -147,7 +131,6 @@ Return:
 - `FilesScanned`, `FilesChanged`
 - `Changes[]` grouped by catalog topic; each entry: file, line, before → after
 - `Skipped[]` — file, line, catalog topic, reason (usually `ambiguous`)
-- `LegacyCleanup` — in `all` mode, whether the legacy marker was found and removed
 
 Grouping `Changes[]` by catalog topic is the learning loop: it shows which
 error classes recur, which feeds back into the catalog.

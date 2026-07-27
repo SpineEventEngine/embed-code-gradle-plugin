@@ -20,8 +20,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
   functional-test, and build-tool configurations.
 - `settings.gradle.kts`: plugin and dependency repositories and the `gradle-plugin` module.
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
-- `gradle.properties`: Gradle runtime, parallelism, and configuration-cache settings,
-  plus Kotlin style and dependency defaults.
+- `gradle.properties`: Gradle runtime, parallelism, build-cache, and configuration-cache
+  settings, plus Kotlin style and dependency defaults.
 - `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module`
   convention, including Detekt.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
@@ -75,6 +75,8 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
+- Use `./gradlew :buildSrc:test` for the build-logic tests. `buildSrc` is a separate build,
+  so `check` does not reach them; CI runs the task explicitly.
 - Use `./gradlew --no-configuration-cache --no-parallel generateDependencyReports` after changing
   dependencies. CI verifies that the publication POM and module license inventory match
   `pom.xml` and `dependencies.md`.

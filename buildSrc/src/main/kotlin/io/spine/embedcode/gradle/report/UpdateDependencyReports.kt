@@ -49,7 +49,12 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "The task updates documentation tracked in the source tree.")
 public abstract class UpdateDependencyReports : DefaultTask() {
 
-    /** Generated publication POM. */
+    /**
+     * Generated publication POM.
+     *
+     * Modeled as a collection so that the root build script can wire it from the publication
+     * task without realizing that task. The collection must resolve to exactly one file.
+     */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     public abstract val generatedPom: ConfigurableFileCollection
@@ -70,7 +75,13 @@ public abstract class UpdateDependencyReports : DefaultTask() {
     /** Replaces the tracked reports with the generated files. */
     @TaskAction
     public fun update() {
-        copy(generatedPom.singleFile.toPath(), trackedPom)
+        val pomFiles = generatedPom.files
+        check(pomFiles.size == 1) {
+            "Expected exactly one generated POM, but resolved ${pomFiles.size}: $pomFiles. " +
+                "The publication task the root build script matches by name has likely been " +
+                "renamed or removed."
+        }
+        copy(pomFiles.single().toPath(), trackedPom)
         copy(generatedLicenses.get().asFile.toPath(), trackedLicenses)
     }
 

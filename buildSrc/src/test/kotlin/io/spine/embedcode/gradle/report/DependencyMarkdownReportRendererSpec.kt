@@ -41,4 +41,41 @@ internal class DependencyMarkdownReportRendererSpec {
 
         assertEquals("# Dependency report\nEntry\n", normalized)
     }
+
+    @Test
+    fun `replace a link to an untracked license file with a code span`() {
+        val line = "> - **Embedded license files**: [caffeine-2.9.3.jar/META-INF/LICENSE]" +
+            "(caffeine-2.9.3.jar/META-INF/LICENSE)"
+
+        val neutralized = neutralizeRelativeLinks(line)
+
+        assertEquals(
+            "> - **Embedded license files**: `caffeine-2.9.3.jar/META-INF/LICENSE`",
+            neutralized,
+        )
+    }
+
+    @Test
+    fun `replace every link on a line listing several license files`() {
+        val line = "> - **Embedded license files**: [a.jar/LICENSE](a.jar/LICENSE), " +
+            "[b.jar/NOTICE](b.jar/NOTICE)"
+
+        val neutralized = neutralizeRelativeLinks(line)
+
+        assertEquals(
+            "> - **Embedded license files**: `a.jar/LICENSE`, `b.jar/NOTICE`",
+            neutralized,
+        )
+    }
+
+    @Test
+    fun `keep links that address an absolute URL`() {
+        val line = "> - **POM License**: Apache 2.0 - " +
+            "[https://www.apache.org/licenses/LICENSE-2.0.txt]" +
+            "(https://www.apache.org/licenses/LICENSE-2.0.txt)"
+
+        val neutralized = neutralizeRelativeLinks(line)
+
+        assertEquals(line, neutralized)
+    }
 }

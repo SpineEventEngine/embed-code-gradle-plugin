@@ -36,8 +36,13 @@ import org.gradle.api.tasks.Input
 /**
  * Renders a deterministic Markdown dependency license report.
  *
- * The upstream renderer adds trailing spaces to dependency lines. This renderer removes them so
- * that the generated documentation passes the repository's whitespace checks.
+ * This renderer adapts the upstream output to a report tracked in the repository:
+ *
+ * - The upstream renderer adds trailing spaces to dependency lines. They are removed so that
+ *   the generated documentation passes the repository's whitespace checks.
+ * - The upstream renderer links embedded license files relatively, expecting them to sit next
+ *   to the report. Only the report itself is tracked, so those links are turned into plain
+ *   code spans that name the file without pointing at a missing path.
  *
  * @property filename name of the generated report file.
  * @property title report title.
@@ -59,7 +64,7 @@ public class DependencyMarkdownReportRenderer(
             true,
         )
 
-    /** Writes the report and normalizes its line endings and trailing whitespace. */
+    /** Writes the report and normalizes it for tracking in the repository. */
     override fun render(data: ProjectData) {
         delegate.render(data)
         val extension = data.extension as LicenseReportExtension
@@ -68,13 +73,23 @@ public class DependencyMarkdownReportRenderer(
     }
 }
 
+/**
+ * A Markdown link whose target is not an absolute URL.
+ *
+ * The lookahead keeps `http:`, `https:`, and any other scheme-qualified target intact.
+ */
+private val relativeLink = Regex("""\[([^]]+)]\((?!\w+:)[^)]*\)""")
+
 internal fun normalizeMarkdownReport(report: String): String {
     val lines =
         report
             .lineSequence()
-            .map { it.trimEnd() }
+            .map { neutralizeRelativeLinks(it.trimEnd()) }
             .toList()
             .dropWhile { it.isEmpty() }
             .dropLastWhile { it.isEmpty() }
     return lines.joinToString(separator = "\n", postfix = "\n")
 }
+
+internal fun neutralizeRelativeLinks(line: String): String =
+    relativeLink.replace(line) { "`${it.groupValues[1]}`" }

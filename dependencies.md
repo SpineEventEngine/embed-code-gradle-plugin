@@ -10,7 +10,7 @@
 **2** **Group:** `com.github.ben-manes.caffeine` **Name:** `caffeine` **Version:** `2.9.3`
 > - **POM Project URL**: [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
 > - **POM License**: Apache License, Version 2.0 - [https://www.apache.org/licenses/LICENSE-2.0.txt](https://www.apache.org/licenses/LICENSE-2.0.txt)
-> - **Embedded license files**: [caffeine-2.9.3.jar/META-INF/LICENSE](caffeine-2.9.3.jar/META-INF/LICENSE)
+> - **Embedded license files**: `caffeine-2.9.3.jar/META-INF/LICENSE`
 
 **3** **Group:** `org.jcommander` **Name:** `jcommander` **Version:** `1.85`
 > - **POM Project URL**: [https://jcommander.org](https://jcommander.org)
@@ -179,44 +179,44 @@
 **43** **Group:** `org.junit.jupiter` **Name:** `junit-jupiter` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-jupiter-6.1.2.jar/META-INF/LICENSE.md](junit-jupiter-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-jupiter-6.1.2.jar/META-INF/LICENSE.md`
 
 **44** **Group:** `org.junit.jupiter` **Name:** `junit-jupiter-api` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-jupiter-api-6.1.2.jar/META-INF/LICENSE.md](junit-jupiter-api-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-jupiter-api-6.1.2.jar/META-INF/LICENSE.md`
 
 **45** **Group:** `org.junit.jupiter` **Name:** `junit-jupiter-engine` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-jupiter-engine-6.1.2.jar/META-INF/LICENSE.md](junit-jupiter-engine-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-jupiter-engine-6.1.2.jar/META-INF/LICENSE.md`
 
 **46** **Group:** `org.junit.jupiter` **Name:** `junit-jupiter-params` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-jupiter-params-6.1.2.jar/META-INF/LICENSE.md](junit-jupiter-params-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-jupiter-params-6.1.2.jar/META-INF/LICENSE.md`
 
 **47** **Group:** `org.junit.platform` **Name:** `junit-platform-commons` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-platform-commons-6.1.2.jar/META-INF/LICENSE.md](junit-platform-commons-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-platform-commons-6.1.2.jar/META-INF/LICENSE.md`
 
 **48** **Group:** `org.junit.platform` **Name:** `junit-platform-engine` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-platform-engine-6.1.2.jar/META-INF/LICENSE.md](junit-platform-engine-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-platform-engine-6.1.2.jar/META-INF/LICENSE.md`
 
 **49** **Group:** `org.junit.platform` **Name:** `junit-platform-launcher` **Version:** `6.1.2`
 > - **POM Project URL**: [https://junit.org/](https://junit.org/)
 > - **POM License**: Eclipse Public License v2.0 - [https://www.eclipse.org/legal/epl-v20.html](https://www.eclipse.org/legal/epl-v20.html)
-> - **Embedded license files**: [junit-platform-launcher-6.1.2.jar/META-INF/LICENSE.md](junit-platform-launcher-6.1.2.jar/META-INF/LICENSE.md)
+> - **Embedded license files**: `junit-platform-launcher-6.1.2.jar/META-INF/LICENSE.md`
 
 ## The Apache License, Version 2.0
 
 **50** **Group:** `org.apiguardian` **Name:** `apiguardian-api` **Version:** `1.1.2`
 > - **Project URL**: [https://github.com/apiguardian-team/apiguardian](https://github.com/apiguardian-team/apiguardian)
 > - **POM License**: The Apache License, Version 2.0 - [http://www.apache.org/licenses/LICENSE-2.0.txt](http://www.apache.org/licenses/LICENSE-2.0.txt)
-> - **Embedded license files**: [apiguardian-api-1.1.2.jar/META-INF/LICENSE](apiguardian-api-1.1.2.jar/META-INF/LICENSE)
+> - **Embedded license files**: `apiguardian-api-1.1.2.jar/META-INF/LICENSE`
 
 **51** **Group:** `org.jetbrains.kotlin` **Name:** `kotlin-reflect` **Version:** `1.6.10`
 > - **POM Project URL**: [https://kotlinlang.org/](https://kotlinlang.org/)
@@ -235,7 +235,7 @@
 > - **Manifest License**: The Apache License, Version 2.0
 > - **POM Project URL**: [https://github.com/ota4j-team/opentest4j](https://github.com/ota4j-team/opentest4j)
 > - **POM License**: The Apache License, Version 2.0 - [https://www.apache.org/licenses/LICENSE-2.0.txt](https://www.apache.org/licenses/LICENSE-2.0.txt)
-> - **Embedded license files**: [opentest4j-1.3.0.jar/META-INF/LICENSE](opentest4j-1.3.0.jar/META-INF/LICENSE)
+> - **Embedded license files**: `opentest4j-1.3.0.jar/META-INF/LICENSE`
 
 ## The Apache Software License, Version 2.0
 
@@ -373,4 +373,4 @@
 > - **Manifest License**: MIT
 > - **POM Project URL**: [https://checkerframework.org](https://checkerframework.org)
 > - **POM License**: The MIT License - [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT)
-> - **Embedded license files**: [checker-qual-3.19.0.jar/META-INF/LICENSE.txt](checker-qual-3.19.0.jar/META-INF/LICENSE.txt)
+> - **Embedded license files**: `checker-qual-3.19.0.jar/META-INF/LICENSE.txt`

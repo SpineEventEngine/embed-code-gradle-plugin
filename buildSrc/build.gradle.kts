@@ -35,6 +35,8 @@ plugins {
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
 val licenseReportVersion = "3.1.4"
+// Keep in sync with `io.spine.embedcode.gradle.dependency.JUnit.version`, which supplies
+// the same version to the project's own modules.
 val junitVersion = "6.1.2"
 // The alpha version is used because the latest stable version does not support JDK 25.
 val detektVersion = "2.0.0-alpha.5"

@@ -71,6 +71,9 @@ pluginProject.pluginManager.withPlugin(LicenseReport.id) {
         )
     }
 }
+// `maven-publish` creates the POM task while `:gradle-plugin` is evaluated, which is after this
+// script runs, so `tasks.named(...)` would not find it yet. Match the task lazily instead.
+// `UpdateDependencyReports` reports a renamed or missing publication when the input stays empty.
 pluginProject.tasks.withType<GenerateMavenPom>().configureEach {
     if (name == "generatePomFileForPluginMavenPublication") {
         generateDependencyReports.configure {
