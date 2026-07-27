@@ -24,7 +24,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import com.github.jk1.license.LicenseReportExtension
+import com.github.jk1.license.LicenseReportExtension.ALL
+import com.github.jk1.license.render.ReportRenderer
+import com.github.jk1.license.task.ReportTask
 import io.spine.embedcode.gradle.BuildSettings
+import io.spine.embedcode.gradle.dependency.LicenseReport
+import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
+import io.spine.embedcode.gradle.report.GenerateDependencyPom
+import io.spine.embedcode.gradle.report.UpdateDependencyReports
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Sync
@@ -37,6 +45,7 @@ plugins {
 }
 
 apply(plugin = "com.gradle.plugin-publish")
+apply(plugin = LicenseReport.id)
 
 dependencies {
     // Gradle supplies Kotlin at runtime, so the plugin does not publish the standard library.
@@ -116,6 +125,35 @@ java {
     withSourcesJar()
 }
 
+val generateLicenseReport = tasks.named<ReportTask>("generateLicenseReport")
+val generateDependencyPom =
+    tasks.register<GenerateDependencyPom>("generateDependencyPom") {
+        description = "Generates the root POM that documents direct build dependencies."
+        group = "documentation"
+        groupId.set(provider { project.group.toString() })
+        artifactId.set(rootProject.name)
+        projectVersion.set(provider { project.version.toString() })
+        outputFile.set(layout.buildDirectory.file("reports/dependencies/pom.xml"))
+        dependenciesFrom(configurations)
+    }
+val generateDependencyReports =
+    tasks.register<UpdateDependencyReports>("generateDependencyReports") {
+        description =
+            "Updates pom.xml and dependencies.md. Dependency report generation does not " +
+                "support the configuration cache."
+        group = "documentation"
+        generatedPom.set(generateDependencyPom.flatMap { task -> task.outputFile })
+        generatedLicenses.set(
+            layout.file(
+                generateLicenseReport.map { task ->
+                    task.outputFolder.resolve("dependencies.md")
+                },
+            ),
+        )
+        trackedPom.set(rootProject.layout.projectDirectory.file("pom.xml"))
+        trackedLicenses.set(rootProject.layout.projectDirectory.file("dependencies.md"))
+    }
+
 tasks.withType<Jar>().configureEach {
     from(rootProject.layout.projectDirectory.file("LICENSE")) {
         into("META-INF")
@@ -181,4 +219,18 @@ publishing {
             }
         }
     }
+}
+
+extensions.configure<LicenseReportExtension> {
+    outputDir = layout.buildDirectory.dir("reports/dependencies").get().asFile.absolutePath
+    projects = arrayOf(project)
+    configurations = ALL
+    excludeOwnGroup = true
+    renderers =
+        arrayOf<ReportRenderer>(
+            DependencyMarkdownReportRenderer(
+                "dependencies.md",
+                "$group:${rootProject.name} — dependencies from all plugin-module configurations",
+            ),
+        )
 }

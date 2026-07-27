@@ -68,4 +68,17 @@ jobs:
         run: >-
           ./gradlew
           -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME"
-          build :gradle-plugin:publishToMavenLocal
+          build :buildSrc:test :gradle-plugin:publishToMavenLocal
+
+      - name: Verify Dependency Reports
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          ./gradlew \
+            -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME" \
+            generateDependencyReports
+          git diff --exit-code -- dependencies.md pom.xml || {
+            echo "::error::Dependency reports are stale. Run" \
+              "./gradlew generateDependencyReports and commit the results."
+            exit 1
+          }

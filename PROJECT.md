@@ -15,13 +15,18 @@ Embed Code configuration file and do not need to install the executable or Kotli
 ## Project map
 
 - `build.gradle.kts`: root group and version wiring.
+- `pom.xml`: the generated inventory of first-level dependencies from every plugin-module
+  configuration. It is not a Maven build descriptor.
+- `dependencies.md`: the generated license inventory for the plugin module's production, test,
+  functional-test, and build-tool configurations.
 - `settings.gradle.kts`: plugin and dependency repositories, toolchain resolution, and the
   `gradle-plugin` module.
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, build-cache, and configuration-cache
   settings, plus Kotlin style and dependency defaults.
 - `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module`
-  convention, including Detekt.
+  convention. Its focused unit tests cover custom report logic; Detekt analyzes the plugin module
+  through the convention but does not analyze the standalone `buildSrc` build.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
   test source set, publication metadata, and Plugin Portal configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
@@ -80,6 +85,11 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
+- Use `./gradlew :buildSrc:test` for the build-logic tests. `buildSrc` is a separate build,
+  so `check` does not reach them; CI runs the task explicitly.
+- Use `./gradlew generateDependencyReports` after changing dependencies or the plugin version.
+  CI verifies that the aggregate dependency POM and module license inventory match `pom.xml`
+  and `dependencies.md`.
 - CI validates agent configuration on Ubuntu and independently runs the build and publishes
   the plugin to Maven Local on Ubuntu and Windows. Preserve cross-platform paths, permissions,
   line endings, and process behavior.

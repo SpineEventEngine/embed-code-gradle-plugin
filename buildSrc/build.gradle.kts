@@ -34,6 +34,10 @@ plugins {
 // before its sources compile.
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
+val licenseReportVersion = "3.1.4"
+// Keep in sync with `io.spine.embedcode.gradle.dependency.JUnit.version`, which supplies
+// the same version to the project's own modules.
+val junitVersion = "6.1.2"
 // The alpha version is used because the latest stable version does not support JDK 25.
 val detektVersion = "2.0.0-alpha.5"
 
@@ -43,9 +47,13 @@ dependencies {
         "com.gradle.plugin-publish:com.gradle.plugin-publish.gradle.plugin:" +
             pluginPublishVersion,
     )
+    implementation("com.github.jk1:gradle-license-report:$licenseReportVersion")
     implementation(
         "dev.detekt:dev.detekt.gradle.plugin:$detektVersion",
     )
+    testImplementation(platform("org.junit:junit-bom:$junitVersion"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
@@ -61,6 +69,10 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.withType<JavaCompile>().configureEach {

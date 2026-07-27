@@ -1,4 +1,5 @@
 gradlew text eol=lf
 *.md text eol=lf
+pom.xml text eol=lf
 *.bat text eol=crlf
 *.jar binary
