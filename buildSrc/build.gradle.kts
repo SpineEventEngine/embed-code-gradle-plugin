@@ -35,7 +35,7 @@ plugins {
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
 val licenseReportVersion = "3.1.4"
-// The alpha version is used, because latest stable version does not support JDK 25.
+// The alpha version is used because the latest stable version does not support JDK 25.
 val detektVersion = "2.0.0-alpha.5"
 
 dependencies {
