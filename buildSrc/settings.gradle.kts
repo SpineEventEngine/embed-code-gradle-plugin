@@ -32,6 +32,7 @@ pluginManagement {
 }
 
 plugins {
+    // Reuse the version pinned by the root settings script and already on this build's classpath.
     id("org.gradle.toolchains.foojay-resolver-convention")
 }
 
