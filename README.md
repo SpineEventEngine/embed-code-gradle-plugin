@@ -143,8 +143,8 @@ Run compilation, plugin validation, and the complete test suite:
 ./gradlew check
 ```
 
-Fast unit tests run under `test`. TestKit coverage runs separately under
-`functionalTest`; the `check` task includes both.
+Fast unit tests run under `test`, TestKit coverage runs under `functionalTest`, and Detekt static
+analysis runs under `detekt`. The `check` task includes all three.
 
 To test the plugin in another project, publish it to the local Maven repository:
 

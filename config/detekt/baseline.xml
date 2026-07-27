@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:EmbedCodePlugin.kt:EmbedCodePlugin$override fun apply</ID>
+    <ID>LongMethod:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$@TaskAction public fun install</ID>
+    <ID>MagicNumber:InstallEmbedCodeTask.kt:InstallEmbedCodeTask.Companion$200</ID>
+    <ID>MagicNumber:InstallEmbedCodeTask.kt:InstallEmbedCodeTask.Companion$299</ID>
+    <ID>ReturnCount:Checksum.kt:internal fun githubReleaseApi: URI?</ID>
+    <ID>ReturnCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$@TaskAction public fun install</ID>
+    <ID>ReturnCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$private fun installFromVerifiedAsset: Boolean</ID>
+    <ID>ReturnCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$private fun isLocallyVerifiedExecutable: Boolean</ID>
+    <ID>ReturnCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$private fun isPreviouslyVerifiedInstallation: Boolean</ID>
+    <ID>ThrowsCount:Checksum.kt:internal fun parseGitHubAssetSha256: String</ID>
+    <ID>ThrowsCount:EmbedCodeVersion.kt:internal fun validateVersion: String</ID>
+    <ID>ThrowsCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$@TaskAction public fun install</ID>
+    <ID>ThrowsCount:InstallEmbedCodeTask.kt:InstallEmbedCodeTask.Companion$fun createDirectoriesSafely</ID>
+    <ID>TooManyFunctions:InstallEmbedCodeTask.kt:InstallEmbedCodeTask$Companion</ID>
+  </CurrentIssues>
+</SmellBaseline>

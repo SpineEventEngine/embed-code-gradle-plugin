@@ -1,0 +1,36 @@
+naming:
+  ClassNaming:
+    excludes: &testFiles
+      - "**/*Test.kt"
+      - "**/*Spec.kt"
+  MatchingDeclarationName:
+    excludes: *testFiles
+  FunctionNaming:
+    excludes: *testFiles
+
+style:
+  UnusedPrivateFunction:
+    allowedNames: '(_|ignored|expected|serialVersionUID|about|ABOUT)'
+  UnusedPrivateProperty:
+    allowedNames: '(_|ignored|expected|serialVersionUID|about|ABOUT)'
+  MagicNumber:
+    excludes: *testFiles
+    ignoreNumbers:
+      - '-1'
+      - '0'
+      - '1'
+      - '2'
+      - '3'
+  MaxLineLength:
+    maxLineLength: 100
+    excludeCommentStatements: true
+  ForbiddenComment:
+    allowedPatterns: 'TODO:'
+
+complexity:
+  LargeClass:
+    excludes: *testFiles
+  TooManyFunctions:
+    excludes: *testFiles
+  LongMethod:
+    excludes: *testFiles

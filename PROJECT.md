@@ -19,7 +19,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, and configuration-cache settings,
   plus Kotlin style and dependency defaults.
-- `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module` convention.
+- `buildSrc/`: build settings, dependency coordinates, and the shared JVM and Detekt convention.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
   test source set, publication metadata, and Plugin Portal configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
@@ -27,6 +27,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `gradle-plugin/src/main/templates/`: generated default-version source template.
 - `gradle-plugin/src/test/kotlin/`: focused unit specifications.
 - `gradle-plugin/src/functionalTest/kotlin/`: TestKit consumer-build specifications.
+- `config/detekt/`: project-specific Detekt rules and the baseline for existing findings.
 - `scripts/check_agent_config.py` and `scripts/tests/`: deterministic validation and tests.
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
