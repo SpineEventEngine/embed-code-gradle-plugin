@@ -50,6 +50,7 @@ public class DependencyMarkdownReportRenderer(
 ) : ReportRenderer {
 
     private val delegate =
+        // Parameters: overrides file, timestamp flag, and dependency-counter flag.
         InventoryMarkdownReportRenderer(
             filename,
             title,
@@ -63,10 +64,17 @@ public class DependencyMarkdownReportRenderer(
         delegate.render(data)
         val extension = data.extension as LicenseReportExtension
         val outputFile = File(extension.absoluteOutputDir, filename)
-        val normalized =
-            outputFile
-                .readLines()
-                .joinToString(separator = "\n") { it.trimEnd() }
-        outputFile.writeText("$normalized\n")
+        outputFile.writeText(normalizeMarkdownReport(outputFile.readText()))
     }
+}
+
+internal fun normalizeMarkdownReport(report: String): String {
+    val lines =
+        report
+            .lineSequence()
+            .map { it.trimEnd() }
+            .toList()
+            .dropWhile { it.isEmpty() }
+            .dropLastWhile { it.isEmpty() }
+    return lines.joinToString(separator = "\n", postfix = "\n")
 }

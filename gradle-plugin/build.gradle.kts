@@ -24,8 +24,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import com.github.jk1.license.LicenseReportExtension
+import com.github.jk1.license.LicenseReportExtension.ALL
+import com.github.jk1.license.render.ReportRenderer
 import io.spine.embedcode.gradle.BuildSettings
+import io.spine.embedcode.gradle.dependency.LicenseReport
 import io.spine.embedcode.gradle.dependency.PluginPublish
+import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Sync
@@ -38,6 +43,7 @@ plugins {
 }
 
 apply(plugin = PluginPublish.id)
+apply(plugin = LicenseReport.id)
 
 dependencies {
     // Gradle supplies Kotlin at runtime, so the plugin does not publish the standard library.
@@ -176,4 +182,18 @@ publishing {
             }
         }
     }
+}
+
+extensions.configure<LicenseReportExtension> {
+    outputDir = layout.buildDirectory.dir("reports/dependencies").get().asFile.absolutePath
+    projects = arrayOf(project)
+    configurations = ALL
+    excludeOwnGroup = true
+    renderers =
+        arrayOf<ReportRenderer>(
+            DependencyMarkdownReportRenderer(
+                "dependencies.md",
+                "$group:${rootProject.name}:$version",
+            ),
+        )
 }

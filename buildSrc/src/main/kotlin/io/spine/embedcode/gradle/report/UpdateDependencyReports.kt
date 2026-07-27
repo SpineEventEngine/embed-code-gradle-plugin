@@ -27,11 +27,14 @@
 package io.spine.embedcode.gradle.report
 
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -46,34 +49,34 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "The task updates documentation tracked in the source tree.")
 public abstract class UpdateDependencyReports : DefaultTask() {
 
-    /** Generated Maven POM. */
-    @get:InputFile
+    /** Generated publication POM. */
+    @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
-    public abstract val generatedPom: RegularFileProperty
+    public abstract val generatedPom: ConfigurableFileCollection
 
     /** Generated Markdown license report. */
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     public abstract val generatedLicenses: RegularFileProperty
 
-    /** Tracked Maven POM. */
-    @get:OutputFile
+    /** Tracked publication POM. */
+    @get:Internal
     public abstract val trackedPom: RegularFileProperty
 
     /** Tracked Markdown license report. */
-    @get:OutputFile
+    @get:Internal
     public abstract val trackedLicenses: RegularFileProperty
 
     /** Replaces the tracked reports with the generated files. */
     @TaskAction
     public fun update() {
-        copy(generatedPom, trackedPom)
-        copy(generatedLicenses, trackedLicenses)
+        copy(generatedPom.singleFile.toPath(), trackedPom)
+        copy(generatedLicenses.get().asFile.toPath(), trackedLicenses)
     }
 
-    private fun copy(source: RegularFileProperty, target: RegularFileProperty) {
+    private fun copy(source: Path, target: RegularFileProperty) {
         val targetPath = target.get().asFile.toPath()
         Files.createDirectories(targetPath.parent)
-        Files.copy(source.get().asFile.toPath(), targetPath, REPLACE_EXISTING)
+        Files.copy(source, targetPath, REPLACE_EXISTING)
     }
 }

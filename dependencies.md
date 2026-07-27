@@ -1,4 +1,3 @@
-
 # io.spine.tools:embed-code-gradle-plugin:0.1.1
 ## Dependency License Report
 ## Apache 2.0
@@ -375,5 +374,3 @@
 > - **POM Project URL**: [https://checkerframework.org](https://checkerframework.org)
 > - **POM License**: The MIT License - [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT)
 > - **Embedded license files**: [checker-qual-3.19.0.jar/META-INF/LICENSE.txt](checker-qual-3.19.0.jar/META-INF/LICENSE.txt)
-
-

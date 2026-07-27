@@ -35,6 +35,7 @@ plugins {
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
 val licenseReportVersion = "3.1.4"
+val junitVersion = "6.1.2"
 // The alpha version is used because the latest stable version does not support JDK 25.
 val detektVersion = "2.0.0-alpha.5"
 
@@ -48,6 +49,9 @@ dependencies {
     implementation(
         "dev.detekt:dev.detekt.gradle.plugin:$detektVersion",
     )
+    testImplementation(platform("org.junit:junit-bom:$junitVersion"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
@@ -62,4 +66,8 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
