@@ -10,6 +10,10 @@ This page defines *project-owned* and the two kinds of upstream-owned paths to
 skip. Each consuming skill applies the rule to its file types; this page defines
 the shared mechanism, while the file filter remains in the consuming skill.
 
+Determine submodule ownership from `.gitmodules`, never from a directory name.
+This repository currently has no `.gitmodules`. Its `config/` directory contains
+project-owned Detekt configuration, so neither skip rule applies here.
+
 ## What to skip
 
 A repository does **not** own two kinds of tracked files. Skip both in every

@@ -3,8 +3,8 @@
 
 # Embed Code Gradle plugin
 
-This Gradle plugin integrates [Embed Code][embed-code], an application that
-keeps code examples in Markdown and HTML synchronized with their source files.
+Gradle plugin for [Embed Code][embed-code], an application that keeps code
+examples in Markdown and HTML synchronized with their source files.
 
 The plugin downloads the released Embed Code executable for the current
 platform, so developers and CI jobs do not have to install it manually.

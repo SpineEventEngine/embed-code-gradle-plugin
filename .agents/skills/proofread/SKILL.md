@@ -1,19 +1,9 @@
 ---
 name: proofread
 description: >-
-  Fixes English grammar, punctuation, and spelling errors in the prose of
-  source-code comments and documentation — KDoc/Javadoc, Protobuf, TSDoc/JSDoc,
-  Go doc comments, other comments, and Markdown/AsciiDoc. Applies the shared
-  error catalog in `.agents/guidelines/english-style.md`: a fix lands only when
-  no leave-alone guard matches, and an ambiguous case is reported rather than
-  edited. Touches *project-owned* prose only — never code tokens, string
-  literals, or machine-read comment directives. Runs in three modes chosen by
-  the caller: the default scans files changed on the current branch; `all`
-  sweeps every project-owned file, module by module; a path argument scopes the
-  sweep to one directory. Stateless — no memory sentinel. Reports every change
-  grouped by catalog topic so recurring error classes surface for review. Use
-  once per repo with `all` after a fresh `config` pull, then on each branch to
-  catch new occurrences, or against a named module.
+  Use when proofreading project-owned comments or documentation for English
+  grammar, punctuation, and spelling. Follow the shared English catalog,
+  preserve code and machine-read text, and report ambiguous cases instead of guessing.
 ---
 
 # Proofread
@@ -50,10 +40,13 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
      resolves, use the two working-tree lists alone and note the missing base
      in the report. `--diff-filter=ACMR` excludes deleted paths, so step 3
      never reads a file that no longer exists.
+     On a stacked branch, this fallback can include changes inherited from a
+     parent branch. Use path mode when a path cleanly isolates this branch's
+     prose; otherwise review the expanded file list before editing.
    - **Argument is exactly `all` → full-sweep mode.** Scan every
      project-owned file in the repository. Enumerate candidates with
-     `git ls-files`. Also perform the **legacy cleanup** in step 4. (To
-     scope a directory literally named `all`, pass it as `./all`.)
+     `git ls-files`. (To scope a directory literally named `all`, pass it
+     as `./all`.)
    - **Argument is a path → scoped-sweep mode.** Scan the project-owned
      files under that directory or file: `git ls-files -- <path>`. Use this
      to stage a full sweep over a very large repository one module at a time.
@@ -115,15 +108,7 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
    unchanged and add it to `Skipped[]` with the catalog topic and reason
    `ambiguous` (see **Report**).
 
-4. **Legacy cleanup (full-sweep mode only).** `proofread` supersedes the
-   retired `which-fixer` skill, whose which/that rule is now a catalog
-   topic. If the repository still carries
-   `which-fixer`'s bulk-sweep marker `.agents/memory/which-fixer-applied.md`,
-   delete that file, and remove its pointer line from
-   `.agents/memory/MEMORY.md` (the line linking `which-fixer-applied.md`).
-   Leave the rest of `MEMORY.md` untouched. If neither exists, do nothing.
-
-5. **Report.** Produce the summary in the **Report** section below.
+4. **Report.** Produce the summary in the **Report** section below.
 
 ## Repo notes
 
@@ -135,9 +120,6 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
 - For large repositories in full-sweep mode, process files directory by
   directory to stay within context limits. The path argument stages the
   same work across sessions.
-- This skill is **stateless**: the mode comes from the caller's argument,
-  not from a marker file. The team's rollout tracking records whether a
-  full sweep has already run; repository state does not.
 
 ## Report
 
@@ -147,7 +129,6 @@ Return:
 - `FilesScanned`, `FilesChanged`
 - `Changes[]` grouped by catalog topic; each entry: file, line, before → after
 - `Skipped[]` — file, line, catalog topic, reason (usually `ambiguous`)
-- `LegacyCleanup` — in `all` mode, whether the legacy marker was found and removed
 
 Grouping `Changes[]` by catalog topic is the learning loop: it shows which
 error classes recur, which feeds back into the catalog.
