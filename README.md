@@ -83,6 +83,7 @@ embedCode {
     docsPath.set(layout.projectDirectory)
 }
 ```
+
 `codePath` and `namedSource(...)` are mutually exclusive.
 
 ### Execution
@@ -122,7 +123,7 @@ embedCode {
 }
 ```
 
-### GitHub Authorization
+### GitHub authorization
 
 API requests are unauthenticated unless a token provider is configured explicitly:
 

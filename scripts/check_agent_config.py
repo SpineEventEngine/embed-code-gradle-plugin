@@ -13,6 +13,7 @@ from urllib.parse import unquote, urlsplit
 
 MAX_MARKDOWN_LINE_LENGTH = 100
 SKILLS_DIRECTORY = Path(".agents/skills")
+CLAUDE_COMMANDS_DIRECTORY = Path(".claude/commands")
 AGENT_DOCUMENTS = (
     Path("AGENTS.md"),
     Path("PROJECT.md"),
@@ -71,6 +72,9 @@ def _markdown_files(root: Path) -> list[Path]:
     agents_directory = root / ".agents"
     if agents_directory.is_dir():
         files.extend(agents_directory.rglob("*.md"))
+    claude_commands_directory = root / CLAUDE_COMMANDS_DIRECTORY
+    if claude_commands_directory.is_dir():
+        files.extend(claude_commands_directory.rglob("*.md"))
     return sorted(set(files))
 
 

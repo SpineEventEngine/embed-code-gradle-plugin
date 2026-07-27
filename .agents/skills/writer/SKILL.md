@@ -8,8 +8,9 @@ description: >-
 
 # Documentation writer
 
-Read the [project context](../../../PROJECT.md) and the
-[writing style](../../guidelines/writing-style.md) before reviewing or editing.
+Read the [project context](../../../PROJECT.md), the
+[writing style](../../guidelines/writing-style.md), and the
+[English style](../../guidelines/english-style.md) before reviewing or editing.
 
 ## Establish the audience and owner
 
@@ -61,7 +62,7 @@ truth for Kotlin documentation, and apply
 ## Validate the edit
 
 - Check heading hierarchy, links, paths, terminology, code fences, table alignment, and wrapping.
-- Check that changed Markdown and KDoc follow the shared writing style.
+- Check that changed Markdown and KDoc follow the shared writing and English styles.
 - Leave no orphans: reflow or rewrite a paragraph, list item, table cell, or KDoc block
   whose final source line contains one word or an unusually short fragment.
 - Run `git diff --check`.

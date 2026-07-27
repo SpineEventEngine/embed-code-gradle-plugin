@@ -27,6 +27,8 @@ structure when it is more specific.
 ## Use typography deliberately
 
 - Reserve typographic quotation marks for actual page or section titles, such as “Requirements”.
+- Use straight quotation marks for words discussed as words (use–mention), such as
+  "which" and "that".
 - Do not use quotation marks for emphasis, identifiers, invented labels, or technical
   terms. Use plain prose, italics, or code formatting as appropriate.
 - Do not leave runts or orphans. Reflow or rewrite a paragraph, list item, or table cell
