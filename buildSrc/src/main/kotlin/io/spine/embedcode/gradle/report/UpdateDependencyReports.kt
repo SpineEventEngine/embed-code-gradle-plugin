@@ -30,10 +30,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -49,22 +47,17 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "The task updates documentation tracked in the source tree.")
 public abstract class UpdateDependencyReports : DefaultTask() {
 
-    /**
-     * Generated publication POM.
-     *
-     * Modeled as a collection so that the root build script can wire it from the publication
-     * task without realizing that task. The collection must resolve to exactly one file.
-     */
-    @get:InputFiles
+    /** Generated aggregate dependency POM. */
+    @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
-    public abstract val generatedPom: ConfigurableFileCollection
+    public abstract val generatedPom: RegularFileProperty
 
     /** Generated Markdown license report. */
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
     public abstract val generatedLicenses: RegularFileProperty
 
-    /** Tracked publication POM. */
+    /** Tracked aggregate dependency POM. */
     @get:Internal
     public abstract val trackedPom: RegularFileProperty
 
@@ -75,13 +68,7 @@ public abstract class UpdateDependencyReports : DefaultTask() {
     /** Replaces the tracked reports with the generated files. */
     @TaskAction
     public fun update() {
-        val pomFiles = generatedPom.files
-        check(pomFiles.size == 1) {
-            "Expected exactly one generated POM, but resolved ${pomFiles.size}: $pomFiles. " +
-                "The publication task the root build script matches by name has likely been " +
-                "renamed or removed."
-        }
-        copy(pomFiles.single().toPath(), trackedPom)
+        copy(generatedPom.get().asFile.toPath(), trackedPom)
         copy(generatedLicenses.get().asFile.toPath(), trackedLicenses)
     }
 

@@ -67,11 +67,18 @@ public class DependencyMarkdownReportRenderer(
     /** Writes the report and normalizes it for tracking in the repository. */
     override fun render(data: ProjectData) {
         delegate.render(data)
-        val extension = data.extension as LicenseReportExtension
+        val extension = requireLicenseReportExtension(data.extension)
         val outputFile = File(extension.absoluteOutputDir, filename)
         outputFile.writeText(normalizeMarkdownReport(outputFile.readText()))
     }
 }
+
+internal fun requireLicenseReportExtension(extension: Any?): LicenseReportExtension =
+    checkNotNull(extension as? LicenseReportExtension) {
+        "Expected ProjectData.extension to be LicenseReportExtension, but received " +
+            "${extension?.javaClass?.name ?: "null"}. Check compatibility with the configured " +
+            "gradle-license-report version."
+    }
 
 /**
  * A Markdown link whose target is not an absolute URL.

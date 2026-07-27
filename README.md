@@ -151,14 +151,16 @@ Run compilation, plugin validation, and the complete test suite:
 Fast unit tests run under `test`, TestKit coverage runs under `functionalTest`, and Detekt static
 analysis runs under `detekt`. The `check` task includes all three.
 
-After changing a dependency, update the publication POM and dependency license report:
+After changing a dependency or the plugin version, update the publication POM and dependency
+license report:
 
 ```bash
-./gradlew --no-configuration-cache --no-parallel generateDependencyReports
+./gradlew generateDependencyReports
 ```
 
-The POM describes the published plugin artifact. The license report inventories dependencies
-resolved from the plugin module's production, test, functional-test, and build-tool configurations.
+The POM lists first-level dependencies from every plugin-module configuration and is not a Maven
+build descriptor. The license report also includes their transitive dependencies, grouped by
+license.
 
 To test the plugin in another project, publish it to the local Maven repository:
 

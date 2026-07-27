@@ -24,11 +24,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import com.github.jk1.license.task.ReportTask
-import io.spine.embedcode.gradle.dependency.LicenseReport
-import io.spine.embedcode.gradle.report.UpdateDependencyReports
-import org.gradle.api.publish.maven.tasks.GenerateMavenPom
-
 plugins {
     base
 }
@@ -45,39 +40,4 @@ val embedCodePluginVersion =
 allprojects {
     group = "io.spine.tools"
     version = embedCodePluginVersion
-}
-
-val generateDependencyReports =
-    tasks.register<UpdateDependencyReports>("generateDependencyReports") {
-        description =
-            "Updates pom.xml and dependencies.md. Run with --no-configuration-cache " +
-                "--no-parallel."
-        group = "documentation"
-        trackedPom.set(layout.projectDirectory.file("pom.xml"))
-        trackedLicenses.set(layout.projectDirectory.file("dependencies.md"))
-    }
-
-val pluginProject = project(":gradle-plugin")
-pluginProject.pluginManager.withPlugin(LicenseReport.id) {
-    val generateLicenseReport =
-        pluginProject.tasks.named<ReportTask>("generateLicenseReport")
-    generateDependencyReports.configure {
-        generatedLicenses.set(
-            pluginProject.layout.file(
-                generateLicenseReport.map { task ->
-                    task.outputFolder.resolve("dependencies.md")
-                },
-            ),
-        )
-    }
-}
-// `maven-publish` creates the POM task while `:gradle-plugin` is evaluated, which is after this
-// script runs, so `tasks.named(...)` would not find it yet. Match the task lazily instead.
-// `UpdateDependencyReports` reports a renamed or missing publication when the input stays empty.
-pluginProject.tasks.withType<GenerateMavenPom>().configureEach {
-    if (name == "generatePomFileForPluginMavenPublication") {
-        generateDependencyReports.configure {
-            generatedPom.from(this@configureEach)
-        }
-    }
 }

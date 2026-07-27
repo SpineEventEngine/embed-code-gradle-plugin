@@ -27,6 +27,7 @@
 package io.spine.embedcode.gradle.report
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -77,5 +78,20 @@ internal class DependencyMarkdownReportRendererSpec {
         val neutralized = neutralizeRelativeLinks(line)
 
         assertEquals(line, neutralized)
+    }
+
+    @Test
+    fun `explain an incompatible license report extension`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                requireLicenseReportExtension(Any())
+            }
+
+        assertEquals(
+            "Expected ProjectData.extension to be LicenseReportExtension, but received " +
+                "java.lang.Object. Check compatibility with the configured " +
+                "gradle-license-report version.",
+            exception.message,
+        )
     }
 }

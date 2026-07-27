@@ -1,4 +1,4 @@
-# io.spine.tools:embed-code-gradle-plugin:0.1.1
+# io.spine.tools:embed-code-gradle-plugin — dependencies from all plugin-module configurations
 ## Dependency License Report
 ## Apache 2.0
 
