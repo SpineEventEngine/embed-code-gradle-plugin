@@ -30,7 +30,14 @@ plugins {
 
 apply(from = "version.gradle.kts")
 
+val embedCodePluginVersion =
+    rootProject.extra.properties["embedCodePluginVersion"] as? String
+        ?: error(
+            "The `embedCodePluginVersion` property must be defined as a string " +
+                "in `version.gradle.kts`.",
+        )
+
 allprojects {
     group = "io.spine.tools"
-    version = rootProject.extra["embedCodePluginVersion"]!!
+    version = embedCodePluginVersion
 }

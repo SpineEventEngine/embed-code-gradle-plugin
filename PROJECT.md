@@ -15,11 +15,13 @@ Embed Code configuration file and do not need to install the executable or Kotli
 ## Project map
 
 - `build.gradle.kts`: root group and version wiring.
-- `settings.gradle.kts`: plugin and dependency repositories and the `gradle-plugin` module.
+- `settings.gradle.kts`: plugin and dependency repositories, toolchain resolution, and the
+  `gradle-plugin` module.
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
-- `gradle.properties`: Gradle runtime, parallelism, and configuration-cache settings,
-  plus Kotlin style and dependency defaults.
-- `buildSrc/`: build settings, dependency coordinates, and the shared JVM and Detekt convention.
+- `gradle.properties`: Gradle runtime, parallelism, build-cache, and configuration-cache
+  settings, plus Kotlin style and dependency defaults.
+- `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module`
+  convention, including Detekt.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
   test source set, publication metadata, and Plugin Portal configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
@@ -55,8 +57,14 @@ configuration → executable flow instead of patching only the first visible sym
   release settings, and the test launcher.
 - `gradle-plugin/build.gradle.kts` uses the Kotlin runtime supplied by Gradle;
   it does not publish `kotlin-stdlib`.
-- Dependency versions live in Kotlin objects under `buildSrc`; do not introduce a version
-  catalog as an unrelated refactor.
+- Settings plugin versions are pinned in the root `settings.gradle.kts`;
+  `buildSrc/settings.gradle.kts` reuses that plugin classpath. Bootstrap plugin versions live
+  in `buildSrc/build.gradle.kts`, while reusable library coordinates live in Kotlin objects
+  under `buildSrc`. Do not introduce a version catalog as an unrelated refactor.
+- The Foojay resolver may contact `api.foojay.io` and let Gradle download a missing JDK
+  toolchain for contributor builds. CI provisions its required JDKs before invoking Gradle.
+  This build-time provisioning is outside the plugin's SHA-256 verification of Embed Code
+  release assets.
 
 Read these source files before changing a version or compatibility claim. Avoid copying
 version numbers into agent guidance where a durable source path is sufficient.

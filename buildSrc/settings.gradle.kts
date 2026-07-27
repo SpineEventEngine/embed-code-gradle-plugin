@@ -31,6 +31,11 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Reuse the version pinned by the root settings script and already on this build's classpath.
+    id("org.gradle.toolchains.foojay-resolver-convention")
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
