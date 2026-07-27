@@ -31,8 +31,6 @@ complexity:
   LargeClass:
     excludes: *testFiles
   TooManyFunctions:
-    excludes:
-      - '**/*Test.kt'
-      - '**/*Spec.kt'
+    excludes: *testFiles
   LongMethod:
     excludes: *testFiles
