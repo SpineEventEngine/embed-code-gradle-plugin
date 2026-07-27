@@ -204,7 +204,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             asset,
         )
         val expectedSourceIdentity = releaseAssetIdentity(baseUrl, releaseTag, asset)
-        if (installFromVerifiedAsset(
+        val restoredFromCache = try {
+            installFromVerifiedAsset(
                 platform,
                 destination,
                 cachedAsset,
@@ -215,7 +216,18 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 expectedAssetSha256,
                 installation,
             )
-        ) {
+        } catch (exception: GradleException) {
+            if (exception.cause !is IOException) {
+                throw exception
+            }
+            logger.info(
+                "Could not restore the verified Embed Code asset from `$cachedAsset`; " +
+                    "downloading it again.",
+                exception,
+            )
+            false
+        }
+        if (restoredFromCache) {
             logger.lifecycle(
                 "Reusing verified Embed Code {} from {}",
                 releaseTag,
@@ -256,7 +268,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             )
             if (!installed) {
                 throw GradleException(
-                    "The verified Embed Code asset could not be restored from `$cachedAsset`.",
+                    "Could not restore the verified Embed Code asset from `$cachedAsset`.",
                 )
             }
             logger.info(
@@ -504,7 +516,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
          * Owns the normalized installation root and validates paths used by one task action.
          *
          * The task checks all configured paths before [prepare] creates the root. Later
-         * operations reuse this instance so root normalization and preparation are not repeated.
+         * operations reuse this instance and recheck the root without repeating its creation.
          */
         private class InstallationDirectory(path: Path) {
 
@@ -538,6 +550,13 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                         exception,
                     )
                 }
+                requireRealRoot()
+            }
+
+            /**
+             * Rejects a symbolic-link, redirecting, missing, or non-directory root.
+             */
+            private fun requireRealRoot() {
                 if (
                     isRedirectingFileSystemEntry(root) ||
                     !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)
@@ -553,6 +572,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
              * Rejects symbolic links in every existing component from the installation root.
              */
             fun requireNoSymbolicLinks(path: Path) {
+                requireRealRoot()
                 val normalizedPath = requireInside(path)
                 var current = root
                 root.relativize(normalizedPath).forEach { component ->
@@ -581,6 +601,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
              * Creates [directory] component by component without following symbolic links.
              */
             fun createDirectoriesSafely(directory: Path) {
+                requireRealRoot()
                 val normalizedDirectory = directory.toAbsolutePath().normalize()
                 if (normalizedDirectory != root) {
                     requireInside(normalizedDirectory)

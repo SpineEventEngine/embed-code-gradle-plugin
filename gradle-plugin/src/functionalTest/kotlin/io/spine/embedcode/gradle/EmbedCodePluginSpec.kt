@@ -27,6 +27,7 @@
 package io.spine.embedcode.gradle
 
 import com.sun.net.httpserver.HttpServer
+import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,6 +44,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -428,6 +432,22 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `redownload an unreadable cached asset while online`() {
+        runner(":installEmbedCode").build()
+        Files.delete(installedExecutable())
+        Files.setPosixFilePermissions(
+            installationDirectory().resolve("release-asset"),
+            emptySet(),
+        )
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.isRegularFile(installedExecutable()) shouldBe true
+    }
+
+    @Test
     fun `preserve the cause of a verified asset restoration failure`() {
         val checksumFile = installationDirectory().resolve("asset.sha256")
         Files.createDirectories(checksumFile)
@@ -680,6 +700,48 @@ internal class EmbedCodePluginSpec {
 
         result.output shouldContain "must be a real directory, not a symbolic link"
         Files.readString(sentinel) shouldBe "unchanged"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `reject an installation root redirected during download`() {
+        val downloadStarted = CountDownLatch(1)
+        val continueDownload = CountDownLatch(1)
+        val server = startReleaseServer {
+            downloadStarted.countDown()
+            check(continueDownload.await(30, TimeUnit.SECONDS))
+        }
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            val build = executor.submit<BuildResult> {
+                runner(":installEmbedCode").buildAndFail()
+            }
+            assertTrue(
+                downloadStarted.await(30, TimeUnit.SECONDS),
+                "The release download did not start.",
+            )
+            val installationRoot = projectDirectory.resolve("build/embed-code")
+            val originalInstallation = projectDirectory.resolve("original-installation")
+            val outside = projectDirectory.resolve("outside-installation")
+            Files.createDirectories(outside)
+            val sentinel = outside.resolve("sentinel.txt")
+            Files.writeString(sentinel, "unchanged")
+            Files.move(installationRoot, originalInstallation)
+            Files.createSymbolicLink(installationRoot, outside)
+            continueDownload.countDown()
+
+            val result = build.get(30, TimeUnit.SECONDS)
+
+            result.output shouldContain
+                "must be a real directory, not a symbolic link or redirecting entry"
+            Files.readString(sentinel) shouldBe "unchanged"
+            Files.exists(outside.resolve("versions")) shouldBe false
+        } finally {
+            continueDownload.countDown()
+            executor.shutdownNow()
+            server.stop(0)
+        }
     }
 
     @Test
@@ -1196,11 +1258,13 @@ internal class EmbedCodePluginSpec {
      */
     private fun startReleaseServer(
         downloads: AtomicInteger = AtomicInteger(),
+        beforeDownload: () -> Unit = {},
     ): HttpServer {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/releases/download/") { exchange ->
             val relativePath = exchange.requestURI.path.removePrefix("/releases/download/")
             downloads.incrementAndGet()
+            beforeDownload()
             val downloadDirectory = releaseDirectory.resolve("download")
             val asset = downloadDirectory.resolve(relativePath).normalize()
             if (!asset.startsWith(downloadDirectory) || !Files.isRegularFile(asset)) {
