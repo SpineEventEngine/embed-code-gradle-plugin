@@ -5,7 +5,7 @@ description: >
 argument-hint: "[all | <path>]"
 allowed-tools: >-
   Read, Edit, Write, Grep, Glob, Bash(git diff:*), Bash(git ls-files:*),
-  Bash(git status:*), Bash(git rm:*), Bash(rm:*), Bash(cmp:*)
+  Bash(git status:*), Bash(git rm:*), Bash(cmp:*)
 model: sonnet
 ---
 
