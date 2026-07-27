@@ -36,6 +36,9 @@ object JUnit {
     private const val platformGroup = "org.junit.platform"
 
     // JUnit 6 releases Jupiter and Platform artifacts under the same version.
-    const val jupiter = "$jupiterGroup:junit-jupiter:$version"
-    const val platformLauncher = "$platformGroup:junit-platform-launcher:$version"
+    // https://github.com/junit-team/junit5
+    const val jupiterLib = "$jupiterGroup:junit-jupiter:$version"
+
+    // https://github.com/junit-team/junit5/tree/main/junit-platform-launcher
+    const val platformLauncherLib = "$platformGroup:junit-platform-launcher:$version"
 }

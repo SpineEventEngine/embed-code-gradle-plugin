@@ -138,6 +138,10 @@ during the initial checksum lookup.
 
 ## Development
 
+The build uses Java 25 to compile the plugin and Java 17 for compatibility tests. If either
+toolchain is unavailable locally, Gradle may contact `api.foojay.io` and download it through
+the Foojay resolver. CI provisions both toolchains before invoking Gradle.
+
 Run compilation, plugin validation, and the complete test suite:
 
 ```bash
