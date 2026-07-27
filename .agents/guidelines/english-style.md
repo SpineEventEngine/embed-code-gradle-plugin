@@ -1,7 +1,7 @@
 # English style
 
 Grammar, punctuation, and spelling rules for the English prose written in
-this organisation's repositories: KDoc and Javadoc, Protobuf doc comments,
+this organization's repositories: KDoc and Javadoc, Protobuf doc comments,
 TSDoc/JSDoc, Go doc comments, other code comments, and Markdown documentation.
 Layout and flow rules (line wrapping, widows and orphans, link style) live in
 [Writing style](writing-style.md); this page covers the language itself.
@@ -46,7 +46,7 @@ is not: in `@param {string} userId The identifier of the user.`, only
 ## Never edit
 
 Some comment content is read by compilers and tools, or must stay verbatim for
-other reasons. A purported fix there can change build behaviour or break tooling.
+other reasons. A purported fix there can change build behavior or break tooling.
 Skip the following content:
 
 **In every language**
@@ -114,12 +114,10 @@ Fixers group their reports by the topic headings below.
 
 ### Restrictive "which" vs. "that"
 
-A relative clause that *restricts or identifies* its antecedent uses
-"that"; a clause that merely *adds information* uses "which", always
-preceded by a comma. The rule is standard English grammar
-(*Merriam-Webster*; Strunk & White, *The Elements of Style*). The error is
-frequent in text by Russian speakers, whose relative pronoun *который* covers
-both restrictive and non-restrictive senses.
+As a project writing rule, use "that" for a relative clause that *restricts
+or identifies* its antecedent. Use "which", preceded by a comma, for a clause
+that merely *adds information*. Russian *который* covers both restrictive and
+non-restrictive senses, so direct transfer can blur this distinction.
 
 | Before                         | After                                      |
 |--------------------------------|--------------------------------------------|
@@ -248,8 +246,8 @@ Leave alone:
 
 "Allow", "enable", and "permit" need an object before a to-infinitive;
 without one, use a gerund or rephrase. "Recommend" and "suggest" take a
-gerund, not a bare infinitive. (Russian «позволяет сделать» transfers as
-the ungrammatical "allows to do".)
+gerund, not a bare infinitive. (The Russian construction «позволяет сделать»
+can transfer as the ungrammatical "allows to do".)
 
 | Before                        | After                        |
 |-------------------------------|------------------------------|
@@ -276,8 +274,8 @@ Leave alone:
 A comparison carries its own function word: "greater **than** X", "equal
 **to** X". Coordinating the two keeps both — "greater than or equal to X".
 Dropping one or both yields "greater or equal X", a calque of the Russian
-«больше или равно X», where the comparative governs the case of the noun
-and no separate function word appears.
+«больше или равно X». This direct transfer omits the English function words
+because the Russian comparative instead governs the case of the noun.
 
 | Before                               | After                                      |
 |--------------------------------------|--------------------------------------------|
@@ -420,5 +418,5 @@ For words where American and British English differ, **the unit of consistency i
   concept an identifier spells: a field called `colour` is described as
   "the colour", whatever the file's dialect.
 
-There is no organisation-wide dialect; if one is adopted later, the
+There is no organization-wide dialect; if one is adopted later, the
 conversion becomes a separate, mechanical sweep.

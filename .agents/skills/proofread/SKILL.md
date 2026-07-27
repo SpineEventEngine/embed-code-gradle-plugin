@@ -1,19 +1,9 @@
 ---
 name: proofread
 description: >-
-  Fixes English grammar, punctuation, and spelling errors in the prose of
-  source-code comments and documentation — KDoc/Javadoc, Protobuf, TSDoc/JSDoc,
-  Go doc comments, other comments, and Markdown/AsciiDoc. Applies the shared
-  error catalog in `.agents/guidelines/english-style.md`: a fix lands only when
-  no leave-alone guard matches, and an ambiguous case is reported rather than
-  edited. Touches *project-owned* prose only — never code tokens, string
-  literals, or machine-read comment directives. Runs in three modes chosen by
-  the caller: the default scans files changed on the current branch; `all`
-  sweeps every project-owned file, module by module; a path argument scopes the
-  sweep to one directory. Stateless — no memory sentinel. Reports every change
-  grouped by catalog topic so recurring error classes surface for review. Use
-  once per repo with `all`, then on each branch to catch new occurrences, or
-  against a named module.
+  Use when proofreading project-owned comments or documentation for English
+  grammar, punctuation, and spelling. Follow the shared English catalog,
+  preserve code and machine-read text, and report ambiguous cases instead of guessing.
 ---
 
 # Proofread
@@ -50,6 +40,9 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
      resolves, use the two working-tree lists alone and note the missing base
      in the report. `--diff-filter=ACMR` excludes deleted paths, so step 3
      never reads a file that no longer exists.
+     On a stacked branch, this fallback can include changes inherited from a
+     parent branch. Use path mode when a path cleanly isolates this branch's
+     prose; otherwise review the expanded file list before editing.
    - **Argument is exactly `all` → full-sweep mode.** Scan every
      project-owned file in the repository. Enumerate candidates with
      `git ls-files`. (To scope a directory literally named `all`, pass it
@@ -75,7 +68,15 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
    changes. Keep them, then intersect the whole list with the file-type filter.
 
    **Then drop everything the project does not own**, per
-   `.agents/guidelines/project-owned-files.md`. Apply the skip in every mode.
+   `.agents/guidelines/project-owned-files.md` — submodule contents and, in
+   a repo that consumes `config`, the config-distributed files. This skill
+   processes prose, so of the config-distributed set it encounters the
+   Markdown members (`AGENTS.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`,
+   `.junie/guidelines.md`, `.github/copilot-instructions.md`, and the
+   conditional `CONTRIBUTING.md`) and the source members under `buildSrc/`
+   (except `buildSrc/src/main/kotlin/module.gradle.kts`). Apply the skip in
+   every mode; in the `config` and `agents` source repos the config rule is
+   inert (those files are project-owned there).
 
 3. **Scan and fix each file.** Restrict edits to **prose only**, per the
    “Where English prose lives” and “Never edit” sections of
@@ -119,9 +120,6 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
 - For large repositories in full-sweep mode, process files directory by
   directory to stay within context limits. The path argument stages the
   same work across sessions.
-- This skill is **stateless**: the mode comes from the caller's argument,
-  not from a marker file. The team's rollout tracking records whether a
-  full sweep has already run; repository state does not.
 
 ## Report
 

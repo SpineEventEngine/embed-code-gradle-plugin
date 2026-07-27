@@ -87,6 +87,8 @@ Combine skills only when their scopes overlap:
 ## Agent entry points
 
 - Codex reads this `AGENTS.md` and discovers repository skills under `.agents/skills/`.
-- Claude reads [CLAUDE.md](CLAUDE.md), which routes back to this file.
+- Claude reads [CLAUDE.md](CLAUDE.md), which routes back to this file. Its
+  [`/proofread` command](.claude/commands/proofread.md) exposes a deliberate repository
+  sweep; other skills use normal routing rather than one command per skill.
 - [GitHub Copilot instructions](.github/copilot-instructions.md) route Copilot back
   to this file and the matching skills.

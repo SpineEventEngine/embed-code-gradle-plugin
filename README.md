@@ -3,8 +3,8 @@
 
 # Embed Code Gradle plugin
 
-This Gradle plugin integrates [Embed Code][embed-code], an application that
-keeps code examples in Markdown and HTML synchronized with their source files.
+Gradle plugin for [Embed Code][embed-code], an application that keeps code
+examples in Markdown and HTML synchronized with their source files.
 
 The plugin downloads the released Embed Code executable for the current
 platform, so developers and CI jobs do not have to install it manually.
@@ -137,6 +137,10 @@ For CI, configure `githubToken` to avoid GitHub's unauthenticated API rate limit
 during the initial checksum lookup.
 
 ## Development
+
+The build uses Java 25 to compile the plugin and Java 17 for compatibility tests. If either
+toolchain is unavailable locally, Gradle may contact `api.foojay.io` and download it through
+the Foojay resolver. CI provisions both toolchains before invoking Gradle.
 
 Run compilation, plugin validation, and the complete test suite:
 

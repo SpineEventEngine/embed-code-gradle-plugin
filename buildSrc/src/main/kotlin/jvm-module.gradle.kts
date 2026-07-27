@@ -79,8 +79,8 @@ tasks.withType<DetektTask>().configureEach {
 }
 
 dependencies {
-    testImplementation(JUnit.jupiter)
-    testRuntimeOnly(JUnit.platformLauncher)
+    testImplementation(JUnit.jupiterLib)
+    testRuntimeOnly(JUnit.platformLauncherLib)
 }
 
 tasks.test {

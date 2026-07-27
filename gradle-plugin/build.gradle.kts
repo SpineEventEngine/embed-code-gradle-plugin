@@ -29,7 +29,6 @@ import com.github.jk1.license.LicenseReportExtension.ALL
 import com.github.jk1.license.render.ReportRenderer
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.LicenseReport
-import io.spine.embedcode.gradle.dependency.PluginPublish
 import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
@@ -42,7 +41,7 @@ plugins {
     `maven-publish`
 }
 
-apply(plugin = PluginPublish.id)
+apply(plugin = "com.gradle.plugin-publish")
 apply(plugin = LicenseReport.id)
 
 dependencies {
@@ -54,7 +53,12 @@ dependencies {
     testRuntimeOnly(gradleApi())
 }
 
-val embedCodeAppVersion = rootProject.extra["embedCodeAppVersion"] as String
+val embedCodeAppVersion =
+    rootProject.extra.properties["embedCodeAppVersion"] as? String
+        ?: error(
+            "The `embedCodeAppVersion` property must be defined as a string " +
+                "in `version.gradle.kts`.",
+        )
 val generateEmbedCodeVersion = tasks.register<Sync>("generateEmbedCodeVersion") {
     description = "Generates the default Embed Code application version."
     inputs.property("embedCodeAppVersion", embedCodeAppVersion)
@@ -101,6 +105,7 @@ val functionalTest = tasks.register<Test>("functionalTest") {
             languageVersion.set(JavaLanguageVersion.of(BuildSettings.bytecodeVersion))
         },
     )
+    outputs.doNotCacheIf("TestKit builds depend on the host environment.") { true }
     shouldRunAfter(tasks.test)
 }
 

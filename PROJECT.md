@@ -18,7 +18,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `pom.xml`: the generated POM for the published plugin artifact.
 - `dependencies.md`: the generated license inventory for the plugin module's production, test,
   functional-test, and build-tool configurations.
-- `settings.gradle.kts`: plugin and dependency repositories and the `gradle-plugin` module.
+- `settings.gradle.kts`: plugin and dependency repositories, toolchain resolution, and the
+  `gradle-plugin` module.
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, build-cache, and configuration-cache
   settings, plus Kotlin style and dependency defaults.
@@ -34,6 +35,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `config/detekt/`: project-specific Detekt rules and the baseline for existing findings.
 - `scripts/check_agent_config.py` and `scripts/tests/`: deterministic validation and tests.
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
+- `.claude/commands/`: thin Claude slash-command entry points for deliberate workflows.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
 
@@ -60,8 +62,14 @@ configuration → executable flow instead of patching only the first visible sym
   release settings, and the test launcher.
 - `gradle-plugin/build.gradle.kts` uses the Kotlin runtime supplied by Gradle;
   it does not publish `kotlin-stdlib`.
-- Dependency versions live in Kotlin objects under `buildSrc`; do not introduce a version
-  catalog as an unrelated refactor.
+- Settings plugin versions are pinned in the root `settings.gradle.kts`;
+  `buildSrc/settings.gradle.kts` reuses that plugin classpath. Bootstrap plugin versions live
+  in `buildSrc/build.gradle.kts`, while reusable library coordinates live in Kotlin objects
+  under `buildSrc`. Do not introduce a version catalog as an unrelated refactor.
+- The Foojay resolver may contact `api.foojay.io` and let Gradle download a missing JDK
+  toolchain for contributor builds. CI provisions its required JDKs before invoking Gradle.
+  This build-time provisioning is outside the plugin's SHA-256 verification of Embed Code
+  release assets.
 
 Read these source files before changing a version or compatibility claim. Avoid copying
 version numbers into agent guidance where a durable source path is sufficient.
@@ -105,6 +113,7 @@ Apply `gradle-engineer` and `security-engineer` to work spanning Gradle and secu
 - `README.md`: user-facing purpose, requirements, Kotlin DSL, execution, and development commands.
 - `PROJECT.md`: project map, runtime flow, compatibility, test strategy, and trust boundaries.
 - `AGENTS.md`: repository-wide agent operating policy and routing.
+- `.claude/commands/`: Claude entry points; detailed workflow policy stays in the owning skill.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/*/SKILL.md`: task-specific workflows and project constraints.
 

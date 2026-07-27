@@ -9,6 +9,10 @@ conflict, and the same edit is needed again.
 This page defines the shared scoping rule; the file-type filter stays in the
 consuming skill.
 
+Determine submodule ownership from `.gitmodules`, never from a directory name.
+This repository currently has no `.gitmodules`. Its `config/` directory contains
+project-owned Detekt configuration, so neither skip rule applies here.
+
 ## What to skip
 
 ### Submodule contents

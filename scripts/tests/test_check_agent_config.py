@@ -352,6 +352,47 @@ name: alpha
         self.assertTrue(any("line has trailing whitespace" in message for message in messages))
         self.assertTrue(any("line exceeds 100 characters" in message for message in messages))
 
+    def test_validates_claude_command_markdown(self) -> None:
+        """Apply link and formatting checks to Claude slash commands."""
+
+        self._write(
+            ".claude/commands/proofread.md",
+            "\n".join(
+                (
+                    "# Proofread",
+                    "",
+                    "Read [missing](missing.md).",
+                    "Read the [missing section](#missing-section).",
+                    "x" * 101,
+                    "",
+                )
+            ),
+        )
+
+        messages = self._messages()
+
+        self.assertTrue(
+            any(
+                ".claude/commands/proofread.md:3: relative link target does not exist"
+                in message
+                for message in messages
+            )
+        )
+        self.assertTrue(
+            any(
+                ".claude/commands/proofread.md:4: Markdown anchor does not exist"
+                in message
+                for message in messages
+            )
+        )
+        self.assertTrue(
+            any(
+                ".claude/commands/proofread.md:5: line exceeds 100 characters"
+                in message
+                for message in messages
+            )
+        )
+
     def test_accepts_colliding_duplicate_heading_anchors(self) -> None:
         """Match GitHub suffixes when a heading collides with a generated anchor."""
 
