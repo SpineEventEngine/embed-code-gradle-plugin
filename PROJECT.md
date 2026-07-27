@@ -15,6 +15,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 ## Project map
 
 - `build.gradle.kts`: root group and version wiring.
+- `pom.xml` and `dependencies.md`: generated dependency and license reports.
 - `settings.gradle.kts`: plugin and dependency repositories and the `gradle-plugin` module.
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, and configuration-cache settings,
@@ -72,6 +73,8 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
+- Use `./gradlew --no-configuration-cache --no-parallel generateDependencyReports` after changing
+  dependencies. CI verifies that `pom.xml` and `dependencies.md` match the generated reports.
 - CI validates agent configuration on Ubuntu and independently runs the build and publishes
   the plugin to Maven Local on Ubuntu and Windows. Preserve cross-platform paths, permissions,
   line endings, and process behavior.

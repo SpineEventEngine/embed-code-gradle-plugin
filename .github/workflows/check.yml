@@ -69,3 +69,10 @@ jobs:
           ./gradlew
           -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME"
           build :gradle-plugin:publishToMavenLocal
+
+      - name: Verify Dependency Reports
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          ./gradlew --no-configuration-cache --no-parallel generateDependencyReports
+          git diff --exit-code -- dependencies.md pom.xml

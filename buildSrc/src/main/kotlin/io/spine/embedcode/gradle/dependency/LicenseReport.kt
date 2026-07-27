@@ -24,42 +24,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+package io.spine.embedcode.gradle.dependency
 
-plugins {
-    `kotlin-dsl`
-}
+/**
+ * Gradle License Report plugin used to document third-party dependencies.
+ */
+public object LicenseReport {
 
-// These bootstrap versions are declared here because `buildSrc` needs them
-// before its sources compile.
-val kotlinVersion = "2.4.10"
-val pluginPublishVersion = "2.1.1"
-val licenseReportVersion = "3.1.4"
-// The alpha version is used, because latest stable version does not support JDK 25.
-val detektVersion = "2.0.0-alpha.5"
-
-dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    implementation(
-        "com.gradle.plugin-publish:com.gradle.plugin-publish.gradle.plugin:" +
-            pluginPublishVersion,
-    )
-    implementation("com.github.jk1:gradle-license-report:$licenseReportVersion")
-    implementation(
-        "dev.detekt:dev.detekt.gradle.plugin:$detektVersion",
-    )
-}
-
-kotlin {
-    // `buildSrc` needs its toolchain before `BuildSettings` is compiled.
-    jvmToolchain(25)
-    compilerOptions {
-        // Keep the build logic loadable by every JVM supported by Gradle 9.
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    /** Plugin identifier. */
+    public const val id: String = "com.github.jk1.dependency-license-report"
 }
