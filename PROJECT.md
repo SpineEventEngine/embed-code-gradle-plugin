@@ -19,7 +19,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, and configuration-cache settings,
   plus Kotlin style and dependency defaults.
-- `buildSrc/`: build settings, dependency coordinates, and the shared JVM and Detekt convention.
+- `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module`
+  convention, including Detekt.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
   test source set, publication metadata, and Plugin Portal configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
