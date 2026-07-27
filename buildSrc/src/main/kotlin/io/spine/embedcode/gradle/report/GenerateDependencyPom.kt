@@ -31,13 +31,15 @@ import java.nio.file.Files
 import org.gradle.api.DefaultTask
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
-import org.gradle.work.DisableCachingByDefault
 
 /**
  * Generates the root dependency POM used as repository documentation.
@@ -46,9 +48,7 @@ import org.gradle.work.DisableCachingByDefault
  * configurations. It describes the build rather than a Maven publication and is not suitable
  * for Maven build tasks.
  */
-@DisableCachingByDefault(
-    because = "The task reads Gradle configuration metadata that is not modeled as task inputs.",
-)
+@CacheableTask
 public abstract class GenerateDependencyPom : DefaultTask() {
 
     /** Group identifier written to the report. */
@@ -63,26 +63,72 @@ public abstract class GenerateDependencyPom : DefaultTask() {
     @get:Input
     public abstract val projectVersion: Property<String>
 
+    /** Encoded direct external dependency declarations. */
+    @get:Input
+    public abstract val dependencyDeclarations: ListProperty<String>
+
+    /** Encoded direct dependency versions from resolvable configurations. */
+    @get:Input
+    public abstract val resolvedDependencyVersions: ListProperty<String>
+
     /** Generated aggregate dependency POM. */
     @get:OutputFile
     public abstract val outputFile: RegularFileProperty
 
-    private lateinit var dependencyConfigurations: ConfigurationContainer
-
     /**
      * Selects the configurations whose direct external dependencies enter the report.
+     *
+     * Captures declarations when the task is configured and wires resolved versions through
+     * providers, so task execution does not retain or query the Gradle configuration model.
      */
     public fun dependenciesFrom(configurations: ConfigurationContainer) {
-        dependencyConfigurations = configurations
+        dependencyDeclarations.set(
+            collectDeclarations(configurations).map(DeclaredDependency::toTaskInput),
+        )
+        resolvedDependencyVersions.set(emptyList())
+        configurations
+            .filter { configuration -> configuration.isCanBeResolved }
+            .sortedBy { configuration -> configuration.name }
+            .forEach { configuration ->
+                val configurationName = configuration.name
+                val resolvedVersions =
+                    configuration.incoming.resolutionResult.rootComponent.map { root ->
+                        directResolvedVersions(root)
+                            .sortedWith(resolvedVersionComparator)
+                    }
+                dependencyDeclarations.addAll(
+                    resolvedVersions.map { versions ->
+                        versions.map { version ->
+                            DeclaredDependency(
+                                group = version.group,
+                                artifact = version.artifact,
+                                configuredVersion = version.version,
+                                configurationName = configurationName,
+                            ).toTaskInput()
+                        }
+                    },
+                )
+                resolvedDependencyVersions.addAll(
+                    resolvedVersions.map { versions ->
+                        versions.map(ResolvedVersion::toTaskInput)
+                    },
+                )
+            }
     }
 
-    /** Resolves dependency versions and writes the aggregate report. */
+    /** Writes the aggregate report from the dependency snapshot. */
     @TaskAction
     public fun generate() {
-        check(::dependencyConfigurations.isInitialized) {
-            "No dependency configurations were supplied for the aggregate POM."
-        }
-        val dependencies = collectDependencies(dependencyConfigurations)
+        val declarations =
+            dependencyDeclarations
+                .get()
+                .map(String::toDeclaredDependency)
+        val resolvedVersions =
+            resolvedDependencyVersions
+                .get()
+                .map(String::toResolvedVersion)
+                .groupBy(ResolvedVersion::moduleId, ResolvedVersion::version)
+        val dependencies = selectDependencies(declarations, resolvedVersions)
         val pom =
             renderDependencyPom(
                 coordinates =
@@ -116,7 +162,7 @@ internal data class PomDependency(
 
 /** Maven scope used to group dependencies in the generated report. */
 internal enum class MavenScope(
-    val xmlValue: String?,
+    val xmlValue: String,
     val outputOrder: Int,
     val selectionOrder: Int,
 ) {
@@ -124,7 +170,6 @@ internal enum class MavenScope(
     RUNTIME("runtime", 1, 1),
     TEST("test", 2, 3),
     PROVIDED("provided", 3, 2),
-    UNDEFINED(null, 4, 4),
 }
 
 /** A dependency declaration and the Gradle configuration that owns it. */
@@ -141,50 +186,74 @@ private data class ModuleId(
     val artifact: String,
 )
 
+/** A resolved first-level dependency version. */
+private data class ResolvedVersion(
+    val group: String,
+    val artifact: String,
+    val version: String,
+) {
+    val moduleId: ModuleId
+        get() = ModuleId(group, artifact)
+}
+
 internal fun collectDependencies(
     configurations: ConfigurationContainer,
 ): List<PomDependency> {
     val resolvedVersions = resolveDirectVersions(configurations)
-    val declarations =
-        configurations
-            .sortedBy { it.name }
-            .flatMap { configuration ->
-                configuration.dependencies
-                    .withType(ExternalModuleDependency::class.java)
-                    .map { dependency ->
-                        DeclaredDependency(
-                            group = checkNotNull(dependency.group),
-                            artifact = dependency.name,
-                            configuredVersion =
-                                dependency.version
-                                    ?: dependency.versionConstraint.requiredVersion
-                                        .takeIf { it.isNotEmpty() },
-                            configurationName = configuration.name,
-                        )
-                    }
-            }
+    val declarations = collectDeclarations(configurations)
     return selectDependencies(declarations, resolvedVersions)
 }
+
+private fun collectDeclarations(
+    configurations: ConfigurationContainer,
+): List<DeclaredDependency> =
+    configurations
+        .sortedBy { configuration -> configuration.name }
+        .flatMap { configuration ->
+            configuration.dependencies
+                .withType(ExternalModuleDependency::class.java)
+                .map { dependency ->
+                    DeclaredDependency(
+                        group = checkNotNull(dependency.group),
+                        artifact = dependency.name,
+                        configuredVersion =
+                            dependency.version
+                                ?: dependency.versionConstraint.requiredVersion
+                                    .takeIf { it.isNotEmpty() },
+                        configurationName = configuration.name,
+                    )
+                }
+        }
 
 private fun resolveDirectVersions(
     configurations: ConfigurationContainer,
 ): Map<ModuleId, List<String>> {
-    val versions = mutableMapOf<ModuleId, MutableSet<String>>()
-    configurations
-        .filter { it.isCanBeResolved }
-        .forEach { configuration ->
-            configuration.incoming.resolutionResult.rootComponent
-                .get()
-                .dependencies
-                .filterIsInstance<ResolvedDependencyResult>()
-                .mapNotNull { dependency -> dependency.selected.moduleVersion }
-                .forEach { module ->
-                    val id = ModuleId(module.group, module.name)
-                    versions.getOrPut(id, ::mutableSetOf).add(module.version)
-                }
-        }
-    return versions.mapValues { (_, values) -> values.sorted() }
+    val versions =
+        configurations
+            .filter { it.isCanBeResolved }
+            .flatMap { configuration ->
+                directResolvedVersions(
+                    configuration.incoming.resolutionResult.rootComponent.get(),
+                )
+            }
+    return versions
+        .distinct()
+        .groupBy(ResolvedVersion::moduleId, ResolvedVersion::version)
 }
+
+private fun directResolvedVersions(
+    root: ResolvedComponentResult,
+): List<ResolvedVersion> =
+    root.dependencies
+        .filterIsInstance<ResolvedDependencyResult>()
+        .mapNotNull { dependency -> dependency.selected.moduleVersion }
+        .map { module ->
+            ResolvedVersion(
+                group = module.group,
+                artifact = module.name,
+                version = module.version,
+            )
+        }
 
 private fun selectDependencies(
     declarations: List<DeclaredDependency>,
@@ -194,7 +263,7 @@ private fun selectDependencies(
         .map { declaration ->
             val id = ModuleId(declaration.group, declaration.artifact)
             val version =
-                resolvedVersions[id]?.maxOrNull()
+                resolvedVersions[id]?.maxWithOrNull(dependencyVersionComparator)
                     ?: declaration.configuredVersion
                     ?: error(
                         "Cannot determine the version of " +
@@ -210,9 +279,15 @@ private fun selectDependencies(
         }
         .groupBy { dependency -> dependency.group to dependency.artifact }
         .map { (_, versions) ->
+            val selectedVersion =
+                checkNotNull(
+                    versions
+                        .map(PomDependency::version)
+                        .maxWithOrNull(dependencyVersionComparator),
+                )
             versions
                 .filter { dependency ->
-                    dependency.version == versions.maxOf(PomDependency::version)
+                    dependency.version == selectedVersion
                 }
                 .minBy { dependency -> dependency.scope.selectionOrder }
         }
@@ -220,22 +295,34 @@ private fun selectDependencies(
             compareBy<PomDependency> { dependency -> dependency.scope.outputOrder }
                 .thenBy { dependency -> dependency.group }
                 .thenBy { dependency -> dependency.artifact }
-                .thenBy { dependency -> dependency.version },
         )
 
 internal fun mavenScope(configurationName: String): MavenScope =
-    when {
-        configurationName in setOf("compile", "implementation", "api") ->
+    when (configurationName) {
+        "implementation",
+        "api",
+        ->
             MavenScope.COMPILE
-        configurationName in setOf("runtime", "runtimeOnly", "runtimeClasspath", "default") ->
+        "runtimeOnly",
+        "runtimeClasspath",
+        "default",
+        ->
             MavenScope.RUNTIME
-        configurationName.startsWith("test", ignoreCase = true) ||
-            configurationName.startsWith("functionalTest", ignoreCase = true) ->
-            MavenScope.TEST
-        configurationName in setOf("compileOnly", "compileOnlyApi", "annotationProcessor") ->
+        "compileOnly",
+        "compileOnlyApi",
+        "annotationProcessor",
+        ->
             MavenScope.PROVIDED
-        else ->
-            MavenScope.UNDEFINED
+        else -> {
+            if (
+                configurationName.startsWith("test", ignoreCase = true) ||
+                    configurationName.startsWith("functionalTest", ignoreCase = true)
+            ) {
+                MavenScope.TEST
+            } else {
+                MavenScope.PROVIDED
+            }
+        }
     }
 
 internal fun renderDependencyPom(
@@ -272,9 +359,7 @@ internal fun renderDependencyPom(
             appendLine("      <groupId>${dependency.group.escapeXml()}</groupId>")
             appendLine("      <artifactId>${dependency.artifact.escapeXml()}</artifactId>")
             appendLine("      <version>${dependency.version.escapeXml()}</version>")
-            dependency.scope.xmlValue?.let { scope ->
-                appendLine("      <scope>$scope</scope>")
-            }
+            appendLine("      <scope>${dependency.scope.xmlValue}</scope>")
             appendLine("    </dependency>")
         }
         appendLine("  </dependencies>")
@@ -287,3 +372,99 @@ private fun String.escapeXml(): String =
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
+
+private val versionSegmentPattern = Regex("""\d+|\D+""")
+
+private val dependencyVersionComparator =
+    Comparator<String> { first, second ->
+        val firstSegments = versionSegmentPattern.findAll(first).map(MatchResult::value).toList()
+        val secondSegments = versionSegmentPattern.findAll(second).map(MatchResult::value).toList()
+        firstSegments
+            .zip(secondSegments)
+            .firstNotNullOfOrNull { (firstSegment, secondSegment) ->
+                compareVersionSegments(firstSegment, secondSegment).takeIf { it != 0 }
+            }
+            ?: firstSegments.size.compareTo(secondSegments.size)
+    }
+
+private val resolvedVersionComparator =
+    compareBy<ResolvedVersion>(ResolvedVersion::group)
+        .thenBy(ResolvedVersion::artifact)
+        .thenComparator { first, second ->
+            dependencyVersionComparator.compare(first.version, second.version)
+        }
+
+private fun compareVersionSegments(first: String, second: String): Int {
+    val firstIsNumeric = first.all(Char::isDigit)
+    val secondIsNumeric = second.all(Char::isDigit)
+    if (!firstIsNumeric || !secondIsNumeric) {
+        return first.compareTo(second)
+    }
+    val normalizedFirst = first.trimStart('0').ifEmpty { "0" }
+    val normalizedSecond = second.trimStart('0').ifEmpty { "0" }
+    return normalizedFirst.length
+        .compareTo(normalizedSecond.length)
+        .takeIf { it != 0 }
+        ?: normalizedFirst.compareTo(normalizedSecond)
+}
+
+private fun DeclaredDependency.toTaskInput(): String =
+    encodeTaskInput(
+        group,
+        artifact,
+        configuredVersion.orEmpty(),
+        configurationName,
+    )
+
+private fun ResolvedVersion.toTaskInput(): String =
+    encodeTaskInput(group, artifact, version)
+
+private fun String.toDeclaredDependency(): DeclaredDependency {
+    val (group, artifact, configuredVersion, configurationName) =
+        decodeTaskInput(expectedFieldCount = 4)
+    return DeclaredDependency(
+        group = group,
+        artifact = artifact,
+        configuredVersion = configuredVersion.takeIf(String::isNotEmpty),
+        configurationName = configurationName,
+    )
+}
+
+private fun String.toResolvedVersion(): ResolvedVersion {
+    val (group, artifact, version) = decodeTaskInput(expectedFieldCount = 3)
+    return ResolvedVersion(group, artifact, version)
+}
+
+private fun encodeTaskInput(vararg fields: String): String =
+    buildString {
+        fields.forEach { field ->
+            append(field.length)
+            append(':')
+            append(field)
+        }
+    }
+
+private fun String.decodeTaskInput(expectedFieldCount: Int): List<String> {
+    val fields = ArrayList<String>(expectedFieldCount)
+    var offset = 0
+    repeat(expectedFieldCount) {
+        val separator = indexOf(':', startIndex = offset)
+        check(separator >= offset) {
+            "Malformed aggregate dependency POM task input."
+        }
+        val fieldLength =
+            substring(offset, separator).toIntOrNull()
+                ?: error("Malformed aggregate dependency POM task input.")
+        val fieldStart = separator + 1
+        val fieldEnd = fieldStart + fieldLength
+        check(fieldEnd <= length) {
+            "Malformed aggregate dependency POM task input."
+        }
+        fields.add(substring(fieldStart, fieldEnd))
+        offset = fieldEnd
+    }
+    check(offset == length) {
+        "Malformed aggregate dependency POM task input."
+    }
+    return fields
+}

@@ -74,7 +74,9 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          ./gradlew generateDependencyReports
+          ./gradlew \
+            -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME" \
+            generateDependencyReports
           git diff --exit-code -- dependencies.md pom.xml || {
             echo "::error::Dependency reports are stale. Run" \
               "./gradlew generateDependencyReports and commit the results."

@@ -135,10 +135,6 @@ val generateDependencyPom =
         projectVersion.set(provider { project.version.toString() })
         outputFile.set(layout.buildDirectory.file("reports/dependencies/pom.xml"))
         dependenciesFrom(configurations)
-        outputs.upToDateWhen { false }
-        notCompatibleWithConfigurationCache(
-            "The aggregate POM reads Gradle configuration metadata at execution time.",
-        )
     }
 val generateDependencyReports =
     tasks.register<UpdateDependencyReports>("generateDependencyReports") {

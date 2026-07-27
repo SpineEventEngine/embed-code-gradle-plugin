@@ -151,8 +151,8 @@ Run compilation, plugin validation, and the complete test suite:
 Fast unit tests run under `test`, TestKit coverage runs under `functionalTest`, and Detekt static
 analysis runs under `detekt`. The `check` task includes all three.
 
-After changing a dependency or the plugin version, update the publication POM and dependency
-license report:
+After changing a dependency or the plugin version, update the dependency inventory and license
+report:
 
 ```bash
 ./gradlew generateDependencyReports

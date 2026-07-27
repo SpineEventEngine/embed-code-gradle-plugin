@@ -28,7 +28,6 @@ package io.spine.embedcode.gradle.report
 
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,7 +41,7 @@ internal class GenerateDependencyPomSpec {
         assertEquals(MavenScope.RUNTIME, mavenScope("runtimeOnly"))
         assertEquals(MavenScope.TEST, mavenScope("functionalTestImplementation"))
         assertEquals(MavenScope.PROVIDED, mavenScope("compileOnly"))
-        assertEquals(MavenScope.UNDEFINED, mavenScope("kotlinBuildToolsApiClasspath"))
+        assertEquals(MavenScope.PROVIDED, mavenScope("kotlinBuildToolsApiClasspath"))
     }
 
     @Test
@@ -62,6 +61,25 @@ internal class GenerateDependencyPomSpec {
 
         assertEquals(1, dependencies.size)
         assertEquals(MavenScope.PROVIDED, dependencies.single().scope)
+    }
+
+    @Test
+    fun `compare numeric version segments when selecting a declared version`() {
+        val project = ProjectBuilder.builder().build()
+        val implementation = project.configurations.create("implementation") {
+            isCanBeResolved = false
+        }
+        val testImplementation = project.configurations.create("testImplementation") {
+            isCanBeResolved = false
+        }
+        implementation.dependencies.add(project.dependencies.create("org.example:shared:1.9"))
+        testImplementation.dependencies.add(
+            project.dependencies.create("org.example:shared:1.10"),
+        )
+
+        val dependency = collectDependencies(project.configurations).single()
+
+        assertEquals("1.10", dependency.version)
     }
 
     @Test
@@ -86,7 +104,7 @@ internal class GenerateDependencyPomSpec {
                             group = "org.example",
                             artifact = "tooling",
                             version = "1.0",
-                            scope = MavenScope.UNDEFINED,
+                            scope = MavenScope.PROVIDED,
                         ),
                     ),
             )
@@ -95,7 +113,7 @@ internal class GenerateDependencyPomSpec {
         assertTrue(pom.contains("<artifactId>runtime</artifactId>"))
         assertTrue(pom.contains("<scope>runtime</scope>"))
         assertTrue(pom.contains("<artifactId>tooling</artifactId>"))
+        assertTrue(pom.contains("<scope>provided</scope>"))
         assertTrue(pom.contains("is not suitable for Maven build tasks"))
-        assertFalse(pom.contains("<scope>undefined</scope>"))
     }
 }
