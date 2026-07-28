@@ -15,6 +15,7 @@ MAX_MARKDOWN_LINE_LENGTH = 100
 SKILLS_DIRECTORY = Path(".agents/skills")
 CLAUDE_COMMANDS_DIRECTORY = Path(".claude/commands")
 AGENT_DOCUMENTS = (
+    Path("README.md"),
     Path("AGENTS.md"),
     Path("PROJECT.md"),
     Path("CLAUDE.md"),
@@ -396,6 +397,10 @@ def _validate_markdown_format(root: Path, files: list[Path]) -> list[Diagnostic]
         open_fence: str | None = None
         for line_number, line in enumerate(_read_lines(path), start=1):
             is_fence, next_fence = _line_is_fence(line, open_fence)
+            is_machine_read_line = (
+                REFERENCE_LINK_PATTERN.match(line) is not None
+                or line.lstrip().startswith("[![")
+            )
             if line.endswith((" ", "\t")):
                 diagnostics.append(
                     Diagnostic(relative, line_number, "line has trailing whitespace")
@@ -403,6 +408,7 @@ def _validate_markdown_format(root: Path, files: list[Path]) -> list[Diagnostic]
             if (
                 open_fence is None
                 and not is_fence
+                and not is_machine_read_line
                 and len(line.expandtabs(4)) > MAX_MARKDOWN_LINE_LENGTH
             ):
                 diagnostics.append(
