@@ -196,14 +196,6 @@ private data class ResolvedVersion(
         get() = ModuleId(group, artifact)
 }
 
-internal fun collectDependencies(
-    configurations: ConfigurationContainer,
-): List<PomDependency> {
-    val resolvedVersions = resolveDirectVersions(configurations)
-    val declarations = collectDeclarations(configurations)
-    return selectDependencies(declarations, resolvedVersions)
-}
-
 private fun collectDeclarations(
     configurations: ConfigurationContainer,
 ): List<DeclaredDependency> =
@@ -224,22 +216,6 @@ private fun collectDeclarations(
                     )
                 }
         }
-
-private fun resolveDirectVersions(
-    configurations: ConfigurationContainer,
-): Map<ModuleId, List<String>> {
-    val versions =
-        configurations
-            .filter { it.isCanBeResolved }
-            .flatMap { configuration ->
-                directResolvedVersions(
-                    configuration.incoming.resolutionResult.rootComponent.get(),
-                )
-            }
-    return versions
-        .distinct()
-        .groupBy(ResolvedVersion::moduleId, ResolvedVersion::version)
-}
 
 private fun directResolvedVersions(
     root: ResolvedComponentResult,
@@ -435,7 +411,7 @@ private fun String.toResolvedVersion(): ResolvedVersion {
     return ResolvedVersion(group, artifact, version)
 }
 
-private fun encodeTaskInput(vararg fields: String): String =
+internal fun encodeTaskInput(vararg fields: String): String =
     buildString {
         fields.forEach { field ->
             append(field.length)
@@ -444,7 +420,7 @@ private fun encodeTaskInput(vararg fields: String): String =
         }
     }
 
-private fun String.decodeTaskInput(expectedFieldCount: Int): List<String> {
+internal fun String.decodeTaskInput(expectedFieldCount: Int): List<String> {
     val fields = ArrayList<String>(expectedFieldCount)
     var offset = 0
     repeat(expectedFieldCount) {
