@@ -1172,7 +1172,10 @@ internal class EmbedCodePluginSpec {
             ""
         }
         val secondSource = if (includeSecondSource) {
-            "namedSource(\"$secondSourceName\", layout.projectDirectory.dir(\"browser\"))"
+            "namedSource(" +
+                "\"$secondSourceName\", " +
+                "providers.provider { layout.projectDirectory.dir(\"browser\") }" +
+                ")"
         } else {
             ""
         }

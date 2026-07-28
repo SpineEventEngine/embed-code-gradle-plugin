@@ -57,6 +57,17 @@ internal class ChecksumSpec {
     }
 
     @Test
+    fun `reject a digest with an invalid length`() {
+        val digest = "0".repeat(63)
+
+        val error = assertThrows(GradleException::class.java) {
+            normalizeSha256(digest)
+        }
+
+        assertEquals("Invalid SHA-256 digest `$digest`.", error.message)
+    }
+
+    @Test
     fun `distinguish release assets in cache metadata`() {
         val baseUrl = "https://github.com/SpineEventEngine/embed-code-go/releases"
 
@@ -97,12 +108,55 @@ internal class ChecksumSpec {
     }
 
     @Test
+    fun `ignore a GitHub URL outside the release path`() {
+        assertNull(
+            githubReleaseApi(
+                "https://github.com/SpineEventEngine/embed-code-go/downloads",
+                "v1.2.4",
+            ),
+        )
+    }
+
+    @Test
     fun `read an asset digest from GitHub JSON`() {
         val digest = "2".repeat(64)
         val json =
             """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
 
         assertEquals(digest, parseGitHubAssetSha256(json, "embed-code-linux"))
+    }
+
+    @Test
+    fun `reject a non-object GitHub release response`() {
+        val error = assertThrows(GradleException::class.java) {
+            parseGitHubAssetSha256("[]", "embed-code-linux")
+        }
+
+        assertEquals("The GitHub release response is not a JSON object.", error.message)
+    }
+
+    @Test
+    fun `reject a GitHub release response without assets`() {
+        val error = assertThrows(GradleException::class.java) {
+            parseGitHubAssetSha256("{}", "embed-code-linux")
+        }
+
+        assertEquals("The GitHub release response does not contain assets.", error.message)
+    }
+
+    @Test
+    fun `reject a GitHub release response without the requested asset`() {
+        val error = assertThrows(GradleException::class.java) {
+            parseGitHubAssetSha256(
+                """{"assets":[{"name":"embed-code-macos"}]}""",
+                "embed-code-linux",
+            )
+        }
+
+        assertEquals(
+            "The GitHub release does not contain asset `embed-code-linux`.",
+            error.message,
+        )
     }
 
     @Test
