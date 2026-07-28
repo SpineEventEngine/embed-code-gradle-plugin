@@ -99,6 +99,11 @@ internal class GenerateDependencyPomSpec {
     }
 
     @Test
+    fun `compare numeric version segments numerically`() {
+        assertTrue(dependencyVersionComparator.compare("1.10", "1.9") > 0)
+    }
+
+    @Test
     fun `round trip task input fields with separators and empty values`() {
         val fields =
             listOf(

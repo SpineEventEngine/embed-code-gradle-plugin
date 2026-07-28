@@ -30,6 +30,6 @@ plugins {
 
 dokka {
     dokkaPublications.html {
-        moduleName.set("Embed Code Gradle Plugin")
+        moduleName.set("embed-code-gradle-plugin")
     }
 }

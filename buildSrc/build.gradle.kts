@@ -30,6 +30,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `kotlin-dsl`
+    // Detekt 1.23.8 does not support JDK 25. Keep this version in sync with
+    // `detektVersion` below.
     id("dev.detekt") version "2.0.0-alpha.5"
 }
 
@@ -42,7 +44,7 @@ val dokkaVersion = "2.2.0"
 // Keep in sync with `io.spine.embedcode.gradle.dependency.JUnit.version`, which supplies
 // the same version to the project's own modules.
 val junitVersion = "6.1.2"
-// The alpha version is used because the latest stable version does not support JDK 25.
+// Keep in sync with the `dev.detekt` plugin version above.
 val detektVersion = "2.0.0-alpha.5"
 
 dependencies {
@@ -78,7 +80,6 @@ java {
 
 extensions.configure<DetektExtension> {
     config.setFrom(layout.projectDirectory.file("../config/detekt/detekt.yml"))
-    baseline.set(layout.projectDirectory.file("../config/detekt/buildSrc-baseline.xml"))
     buildUponDefaultConfig.set(true)
     source.setFrom(
         files(
@@ -89,7 +90,7 @@ extensions.configure<DetektExtension> {
 }
 
 tasks.withType<DetektTask>().configureEach {
-    jvmTarget.set("17")
+    jvmTarget.set(JavaVersion.VERSION_17.majorVersion)
 }
 
 tasks.test {

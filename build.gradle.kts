@@ -41,7 +41,3 @@ allprojects {
     group = "io.spine.tools"
     version = embedCodePluginVersion
 }
-
-subprojects {
-    apply<DokkaConfigurationPlugin>()
-}
