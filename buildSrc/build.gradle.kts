@@ -24,10 +24,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import dev.detekt.gradle.Detekt as DetektTask
+import dev.detekt.gradle.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `kotlin-dsl`
+    id("dev.detekt") version "2.0.0-alpha.5"
 }
 
 // These bootstrap versions are declared here because `buildSrc` needs them
@@ -69,6 +72,22 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+extensions.configure<DetektExtension> {
+    config.setFrom(layout.projectDirectory.file("../config/detekt/detekt.yml"))
+    baseline.set(layout.projectDirectory.file("../config/detekt/buildSrc-baseline.xml"))
+    buildUponDefaultConfig.set(true)
+    source.setFrom(
+        files(
+            "src/main/kotlin",
+            "src/test/kotlin",
+        ),
+    )
+}
+
+tasks.withType<DetektTask>().configureEach {
+    jvmTarget.set("17")
 }
 
 tasks.test {
