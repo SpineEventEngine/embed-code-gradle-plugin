@@ -137,7 +137,7 @@ internal class EmbedCodePluginSpec {
         )
         Files.createDirectories(asset.parent)
         ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
-            zip.putNextEntry(ZipEntry("embed-code-linux"))
+            zip.putNextEntry(ZipEntry("bin/embed-code-linux"))
             zip.write("Linux executable".toByteArray())
             zip.closeEntry()
         }
@@ -148,6 +148,32 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(installedExecutable(releaseTag)) shouldBe "Linux executable"
+    }
+
+    @Test
+    fun `reject a Linux ZIP release without the expected executable`() {
+        val releaseTag = "v1.2.5-missing-executable"
+        val asset = releaseDirectory.resolve(
+            "download/$releaseTag/embed-code-linux.zip",
+        )
+        Files.createDirectories(asset.parent)
+        ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
+            zip.putNextEntry(ZipEntry("README.md"))
+            zip.write("No executable in this archive".toByteArray())
+            zip.closeEntry()
+        }
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
+        result.output shouldContain "does not contain `embed-code-linux`"
+        Files.exists(installedExecutable(releaseTag)) shouldBe false
+        val installation = installationDirectory(releaseTag)
+        listOf("asset.sha256", "executable.sha256", "source.sha256").forEach { marker ->
+            Files.exists(installation.resolve(marker)) shouldBe false
+        }
     }
 
     @Test
@@ -347,6 +373,48 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.isExecutable(executable) shouldBe true
+    }
+
+    @Test
+    fun `restore missing asset checksum metadata from the verified cached asset`() {
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+            val assetChecksum = installationDirectory().resolve("asset.sha256")
+            Files.delete(assetChecksum)
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            downloads.get() shouldBe 1
+            Files.readString(assetChecksum).trim() shouldBe releaseAssetSha256()
+            result.output shouldContain "Reusing verified Embed Code"
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `replace malformed executable checksum metadata from the verified cached asset`() {
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+            val executableChecksum = installationDirectory().resolve("executable.sha256")
+            Files.writeString(executableChecksum, "not-a-sha256")
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            downloads.get() shouldBe 1
+            Files.readString(executableChecksum).trim() shouldBe sha256(installedExecutable())
+            result.output shouldContain "Reusing verified Embed Code"
+        } finally {
+            server.stop(0)
+        }
     }
 
     @Test
@@ -684,6 +752,39 @@ internal class EmbedCodePluginSpec {
 
         result.output shouldContain "must remain inside"
         Files.exists(projectDirectory.resolve("escaped/release-asset")) shouldBe false
+    }
+
+    @Test
+    fun `reject a regular file in the installation path`() {
+        val installationRoot = projectDirectory.resolve("build/embed-code")
+        val blockingFile = installationRoot.resolve("blocked")
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                cachedAssetFile.set(
+                    layout.buildDirectory.file("embed-code/blocked/release-asset")
+                )
+                doFirst {
+                    val blockingFile = cachedAssetFile.get().asFile.parentFile
+                    check(blockingFile.deleteRecursively())
+                    blockingFile.writeText("unchanged")
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(
+            ":installEmbedCode",
+            useConfigurationCache = false,
+        ).buildAndFail()
+
+        result.output shouldContain "Embed Code installation path component"
+        result.output shouldContain "must be a directory."
+        Files.readString(blockingFile) shouldBe "unchanged"
+        Files.exists(installedExecutable()) shouldBe false
     }
 
     @Test
@@ -1052,13 +1153,14 @@ internal class EmbedCodePluginSpec {
     private fun runner(
         vararg arguments: String,
         collectCoverage: Boolean = testKitCoverageJvmArgument != null,
+        useConfigurationCache: Boolean = !collectCoverage,
     ): GradleRunner {
         val gradleArguments = arguments.toMutableList()
         if (collectCoverage) {
             gradleArguments.add(
                 "-Dorg.gradle.jvmargs=${requireNotNull(testKitCoverageJvmArgument)}",
             )
-        } else {
+        } else if (useConfigurationCache) {
             gradleArguments.add("--configuration-cache")
         }
         gradleArguments.add("--stacktrace")
