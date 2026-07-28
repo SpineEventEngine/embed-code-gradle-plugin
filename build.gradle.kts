@@ -24,6 +24,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import io.spine.embedcode.gradle.publish.CheckVersionIncrement
+
 plugins {
     base
 }
@@ -40,4 +42,12 @@ val embedCodePluginVersion =
 allprojects {
     group = "io.spine.tools"
     version = embedCodePluginVersion
+}
+
+tasks.register<CheckVersionIncrement>("checkVersionIncrement") {
+    description = "Checks that the plugin version is not already published."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    pluginId.set("io.spine.embed-code")
+    pluginVersion.set(embedCodePluginVersion)
+    portalBaseUrl.set("https://plugins.gradle.org")
 }

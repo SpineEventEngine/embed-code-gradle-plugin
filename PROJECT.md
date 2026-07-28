@@ -40,6 +40,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
 - `.github/workflows/coverage.yml`: JaCoCo report generation and Codecov upload, using the patch
   target defined in `codecov.yml`.
+- `.github/workflows/increment-guard.yml`: Plugin Portal version availability verification for
+  pull requests.
 - `.claude/commands/`: thin Claude slash-command entry points for deliberate workflows.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
