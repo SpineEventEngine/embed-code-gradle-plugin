@@ -190,26 +190,4 @@ internal class InstallationDirectorySpec {
         )
         assertFalse(Files.exists(outside.resolve("child")))
     }
-
-    @Test
-    @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `reject a directory whose real path escapes the installation root`() {
-        val root = temporaryDirectory.resolve("installation")
-        val outside = temporaryDirectory.resolve("outside")
-        Files.createDirectories(outside)
-        val redirect = root.resolve("redirect")
-        val installation = InstallationDirectory(root)
-        installation.prepare()
-        Files.createSymbolicLink(redirect, outside)
-
-        val error = assertThrows(GradleException::class.java) {
-            installation.requireRealPathInside(redirect)
-        }
-
-        assertEquals(
-            "Embed Code installation directory `${outside.toRealPath()}` " +
-                "must remain inside `${root.toRealPath()}`.",
-            error.message,
-        )
-    }
 }

@@ -45,7 +45,7 @@ internal class InstallationDirectory(path: Path) {
     /**
      * Normalizes [path] and verifies that it is a strict descendant of the root.
      */
-    internal fun requireInside(path: Path): Path {
+    fun requireInside(path: Path): Path {
         val normalizedPath = path.toAbsolutePath().normalize()
         if (normalizedPath == root || !normalizedPath.startsWith(root)) {
             throw GradleException(
@@ -58,7 +58,7 @@ internal class InstallationDirectory(path: Path) {
     /**
      * Creates the installation root and rejects a symlink or non-directory root.
      */
-    internal fun prepare() {
+    fun prepare() {
         try {
             if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
                 Files.createDirectories(root)
@@ -90,7 +90,7 @@ internal class InstallationDirectory(path: Path) {
     /**
      * Rejects symbolic links in every existing component from the installation root.
      */
-    internal fun requireNoSymbolicLinks(path: Path) {
+    fun requireNoSymbolicLinks(path: Path) {
         requireRealRoot()
         val normalizedPath = requireInside(path)
         var current = root
@@ -118,7 +118,7 @@ internal class InstallationDirectory(path: Path) {
     /**
      * Creates [directory] component by component without following symbolic links.
      */
-    internal fun createDirectoriesSafely(directory: Path) {
+    fun createDirectoriesSafely(directory: Path) {
         requireRealRoot()
         val normalizedDirectory = directory.toAbsolutePath().normalize()
         if (normalizedDirectory != root) {
@@ -155,7 +155,7 @@ internal class InstallationDirectory(path: Path) {
     /**
      * Verifies that [directory] resolves below the real installation root.
      */
-    internal fun requireRealPathInside(directory: Path) {
+    private fun requireRealPathInside(directory: Path) {
         val realRoot = root.toRealPath()
         val realDirectory = directory.toRealPath()
         if (!realDirectory.startsWith(realRoot)) {

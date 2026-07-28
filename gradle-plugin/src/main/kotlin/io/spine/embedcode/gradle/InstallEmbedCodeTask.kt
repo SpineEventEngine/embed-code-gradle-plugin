@@ -54,6 +54,9 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.zip.ZipInputStream
 
+internal const val HTTP_CONNECT_TIMEOUT_MILLIS = 30_000
+internal const val HTTP_READ_TIMEOUT_MILLIS = 120_000
+
 /**
  * Downloads and prepares the Embed Code executable selected for the host.
  *
@@ -422,7 +425,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         releaseTag,
         asset,
     ) { metadataSource ->
-        readGitHubReleaseMetadata(metadataSource, githubToken.orNull)
+        readGitHubReleaseMetadata(metadataSource, githubToken.orNull, ::readChecksumMetadata)
     }
 
     /**
@@ -483,8 +486,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
 
     private companion object {
 
-        const val CONNECT_TIMEOUT_MILLIS = 30_000
-        const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
 
         /**
@@ -517,8 +518,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             var connection: URLConnection? = null
             try {
                 connection = source.toURL().openConnection()
-                connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-                connection.readTimeout = READ_TIMEOUT_MILLIS
+                connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MILLIS
+                connection.readTimeout = HTTP_READ_TIMEOUT_MILLIS
                 connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
 
                 if (connection is HttpURLConnection) {

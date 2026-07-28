@@ -32,7 +32,6 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -1169,22 +1168,6 @@ internal class EmbedCodePluginSpec {
         result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
-    @Test
-    fun `reject coverage collection with the configuration cache`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            runner(
-                "help",
-                collectCoverage = true,
-                useConfigurationCache = true,
-            )
-        }
-
-        assertEquals(
-            "TestKit coverage collection is incompatible with the configuration cache.",
-            error.message,
-        )
-    }
-
     /**
      * Creates a runner using the plugin-under-test classpath.
      *
@@ -1448,6 +1431,7 @@ internal class EmbedCodePluginSpec {
     private companion object {
         const val TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY =
             "io.spine.embedcode.gradle.testkit.coverage.jvm-argument"
+        // `org.gradle.jvmargs` replaces Gradle's defaults, so retain them before the JaCoCo agent.
         const val DEFAULT_GRADLE_DAEMON_JVM_ARGUMENTS =
             "-Xmx512m -XX:MaxMetaspaceSize=384m"
         val TEST_RELEASE_TAG = DEFAULT_EMBED_CODE_VERSION

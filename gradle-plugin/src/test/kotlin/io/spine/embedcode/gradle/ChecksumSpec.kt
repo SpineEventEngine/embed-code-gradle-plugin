@@ -263,11 +263,15 @@ internal class ChecksumSpec {
     }
 
     @Test
-    fun `read release metadata through the default transport`() {
+    fun `read release metadata through the provided transport`() {
         val metadata = temporaryDirectory.resolve("metadata.json")
         Files.writeString(metadata, "metadata")
 
-        val result = readGitHubReleaseMetadata(metadata.toUri(), "secret-token")
+        val result = readGitHubReleaseMetadata(
+            metadata.toUri(),
+            "secret-token",
+            ::readChecksumMetadata,
+        )
 
         assertEquals("metadata", result)
     }
