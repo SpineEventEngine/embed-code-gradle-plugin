@@ -47,7 +47,6 @@ allprojects {
 tasks.register<CheckVersionIncrement>("checkVersionIncrement") {
     description = "Checks that the plugin version is not already published."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    pluginId.set("io.spine.embed-code")
     pluginVersion.set(embedCodePluginVersion)
     portalBaseUrl.set("https://plugins.gradle.org")
 }

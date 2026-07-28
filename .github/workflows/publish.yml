@@ -30,7 +30,16 @@ jobs:
       - name: Set Up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Check Plugin Version
+        shell: bash
+        run: ./gradlew checkVersionIncrement --stacktrace
+
+      - name: Check Build
+        shell: bash
+        run: ./gradlew :buildSrc:check check
+
       - name: Decrypt Gradle Plugin Portal Credentials
+        shell: bash
         env:
           GRADLE_PORTAL_CREDENTIALS_KEY: ${{ secrets.GRADLE_PORTAL_CREDENTIALS_KEY }}
         run: |
@@ -52,22 +61,15 @@ jobs:
               --decrypt .github/keys/gradle-plugin-portal.secret.properties.gpg
           chmod 600 "$HOME/.gradle/gradle.properties"
 
-      - name: Require Master for Publication
-        if: ${{ inputs.publish == true }}
-        run: |
-          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
-            echo "::error::Run publication from the master branch."
-            exit 1
-          fi
-
       - name: Validate Plugin Portal Publication
-        if: ${{ inputs.publish == false }}
+        shell: bash
         run: ./gradlew :gradle-plugin:publishPlugins --validate-only
 
-#      - name: Publish to Gradle Plugin Portal
-#        if: ${{ inputs.publish == true }}
-#        run: ./gradlew :gradle-plugin:publishPlugins
+      - name: Publish to Gradle Plugin Portal
+        shell: bash
+        run: ./gradlew :gradle-plugin:publishPlugins
 
       - name: Remove Decrypted Credentials
         if: ${{ always() }}
+        shell: bash
         run: rm -f "$HOME/.gradle/gradle.properties"

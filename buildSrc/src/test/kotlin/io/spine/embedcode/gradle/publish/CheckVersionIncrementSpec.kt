@@ -28,12 +28,14 @@ package io.spine.embedcode.gradle.publish
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.util.Collections.synchronizedList
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -49,7 +51,7 @@ internal class CheckVersionIncrementSpec {
                 exchange.respond(404)
             }
 
-            createTask(server).verifyVersion()
+            createTask(server.baseUrl).verifyVersion()
         }
 
         assertEquals(listOf(EXPECTED_MARKER_PATH), requests)
@@ -70,7 +72,7 @@ internal class CheckVersionIncrementSpec {
                 }
             }
 
-            createTask(server).verifyVersion()
+            createTask(server.baseUrl).verifyVersion()
         }
 
         assertEquals(listOf(EXPECTED_MARKER_PATH, "/missing"), requests)
@@ -83,7 +85,7 @@ internal class CheckVersionIncrementSpec {
                 server.createContext("/") { exchange -> exchange.respond(200) }
 
                 assertThrows(GradleException::class.java) {
-                    createTask(server).verifyVersion()
+                    createTask(server.baseUrl).verifyVersion()
                 }
             }
 
@@ -100,7 +102,7 @@ internal class CheckVersionIncrementSpec {
             server.createContext("/") { exchange -> exchange.respond(503) }
 
             val error = assertThrows(GradleException::class.java) {
-                createTask(server).verifyVersion()
+                createTask(server.baseUrl).verifyVersion()
             }
 
             assertEquals(
@@ -112,7 +114,24 @@ internal class CheckVersionIncrementSpec {
         }
     }
 
-    private fun createTask(server: HttpServer): CheckVersionIncrement {
+    @Test
+    fun `fail closed when the Portal connection fails`() {
+        val portalBaseUrl = "http://127.0.0.1:0"
+
+        val error = assertThrows(GradleException::class.java) {
+            createTask(portalBaseUrl).verifyVersion()
+        }
+
+        assertEquals(
+            "Could not verify whether plugin `io.spine.embed-code` version `0.1.1` is already " +
+                "published. The Gradle Plugin Portal request to " +
+                "`$portalBaseUrl$EXPECTED_MARKER_PATH` failed. Retry before publishing.",
+            error.message,
+        )
+        assertTrue(error.cause is IOException)
+    }
+
+    private fun createTask(portalBaseUrl: String): CheckVersionIncrement {
         val project = ProjectBuilder.builder().build()
         return project.tasks
             .register("checkVersionIncrement", CheckVersionIncrement::class.java)
@@ -120,7 +139,7 @@ internal class CheckVersionIncrementSpec {
             .apply {
                 pluginId.set("io.spine.embed-code")
                 pluginVersion.set("0.1.1")
-                portalBaseUrl.set(server.baseUrl)
+                this.portalBaseUrl.set(portalBaseUrl)
             }
     }
 

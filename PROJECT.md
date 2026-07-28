@@ -14,7 +14,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 
 ## Project map
 
-- `build.gradle.kts`: root group and version wiring.
+- `build.gradle.kts`: root group and version wiring, plus the Plugin Portal version guard.
 - `pom.xml`: the generated inventory of first-level dependencies from every plugin-module
   configuration. It is not a Maven build descriptor.
 - `dependencies.md`: the generated license inventory for the plugin module's production, test,
@@ -42,6 +42,10 @@ Embed Code configuration file and do not need to install the executable or Kotli
   target defined in `codecov.yml`.
 - `.github/workflows/increment-guard.yml`: Plugin Portal version availability verification for
   pull requests.
+- `.github/workflows/publish.yml`: build verification, Portal validation, and publication after
+  changes reach `master`.
+- `.github/keys/`: encrypted publication credentials that the publish workflow decrypts with an
+  organization secret.
 - `.claude/commands/`: thin Claude slash-command entry points for deliberate workflows.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
@@ -106,7 +110,7 @@ version numbers into agent guidance where a durable source path is sufficient.
 
 ## Trust boundaries
 
-Treat executable acquisition and reuse as security-sensitive:
+Treat executable acquisition, reuse, and publication credentials as security-sensitive:
 
 - Authenticate release assets before extraction or execution.
 - Bind cached metadata to the release source, exact tag, platform asset, and digest.
@@ -117,6 +121,10 @@ Treat executable acquisition and reuse as security-sensitive:
 - Reject symbolic-link or junction paths that can redirect writes outside that root.
 - Keep tokens explicit and secret; exclude them from logs, task inputs, cache keys, and metadata.
 - Use unpredictable temporary files and safe replacement when installing assets.
+- Treat the committed Plugin Portal credential ciphertext as public. Keep its decryption key in
+  the organization secret, never print the key or plaintext, restrict the decrypted Gradle
+  properties file to its owner, and remove that file after every publication attempt.
+- Rotate the Plugin Portal credentials and encryption key if the decryption key is compromised.
 
 Apply `gradle-engineer` and `security-engineer` to work spanning Gradle and security boundaries.
 

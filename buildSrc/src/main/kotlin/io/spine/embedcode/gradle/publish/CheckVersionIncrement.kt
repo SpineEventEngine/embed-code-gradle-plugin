@@ -38,6 +38,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.UntrackedTask
 
 /**
  * Checks that the current plugin version is not published to the Gradle Plugin Portal.
@@ -45,6 +46,7 @@ import org.gradle.api.tasks.TaskAction
  * The task checks the exact plugin-marker POM. It succeeds when the Portal returns HTTP 404 and
  * fails closed for an existing artifact, an unexpected response, or a network failure.
  */
+@UntrackedTask(because = "The result depends on live Gradle Plugin Portal state.")
 public abstract class CheckVersionIncrement : DefaultTask() {
 
     /** Plugin ID whose marker artifact is checked. */

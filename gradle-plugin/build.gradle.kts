@@ -30,6 +30,7 @@ import com.github.jk1.license.render.ReportRenderer
 import com.github.jk1.license.task.ReportTask
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.LicenseReport
+import io.spine.embedcode.gradle.publish.CheckVersionIncrement
 import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
 import io.spine.embedcode.gradle.report.GenerateDependencyPom
 import io.spine.embedcode.gradle.report.UpdateDependencyReports
@@ -230,25 +231,29 @@ tasks.withType<Jar>().configureEach {
     }
 }
 
+val embedCodePlugin =
+    gradlePlugin.plugins.create("embedCode") {
+        id = "io.spine.embed-code"
+        implementationClass = "io.spine.embedcode.gradle.EmbedCodePlugin"
+        displayName = "Embed Code Gradle Plugin"
+        description =
+            "Runs Embed Code from Gradle without a separately installed executable."
+        tags.set(listOf("documentation", "code-samples"))
+        compatibility {
+            features {
+                configurationCache = true
+            }
+        }
+    }
+
 gradlePlugin {
     testSourceSets(functionalTestSourceSet)
     website.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
     vcsUrl.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
-    plugins {
-        create("embedCode") {
-            id = "io.spine.embed-code"
-            implementationClass = "io.spine.embedcode.gradle.EmbedCodePlugin"
-            displayName = "Embed Code Gradle Plugin"
-            description =
-                "Runs Embed Code from Gradle without a separately installed executable."
-            tags.set(listOf("documentation", "code-samples"))
-            compatibility {
-                features {
-                    configurationCache = true
-                }
-            }
-        }
-    }
+}
+
+rootProject.tasks.named<CheckVersionIncrement>("checkVersionIncrement") {
+    pluginId.set(embedCodePlugin.id)
 }
 
 publishing {
