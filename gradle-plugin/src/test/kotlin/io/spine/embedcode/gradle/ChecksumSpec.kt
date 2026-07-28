@@ -35,13 +35,19 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.net.InetSocketAddress
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 @DisplayName("Checksum support should")
 internal class ChecksumSpec {
+
+    @TempDir
+    private lateinit var temporaryDirectory: Path
 
     @Test
     fun `normalize a prefixed uppercase digest`() {
@@ -238,6 +244,43 @@ internal class ChecksumSpec {
         }
 
         assertNull(receivedToken)
+    }
+
+    @Test
+    fun `omit an absent or blank token for the GitHub API host`() {
+        val source = URI.create("https://api.github.com/repos/owner/repository/releases/tags/v1")
+        var requests = 0
+
+        listOf(null, "   ").forEach { configuredToken ->
+            readGitHubReleaseMetadata(source, configuredToken) { _, receivedToken ->
+                assertNull(receivedToken)
+                requests++
+                "metadata"
+            }
+        }
+
+        assertEquals(2, requests)
+    }
+
+    @Test
+    fun `read release metadata through the default transport`() {
+        val metadata = temporaryDirectory.resolve("metadata.json")
+        Files.writeString(metadata, "metadata")
+
+        val result = readGitHubReleaseMetadata(metadata.toUri(), "secret-token")
+
+        assertEquals("metadata", result)
+    }
+
+    @Test
+    fun `report a checksum metadata read failure`() {
+        val source = temporaryDirectory.resolve("missing.json").toUri()
+
+        val error = assertThrows(GradleException::class.java) {
+            readChecksumMetadata(source)
+        }
+
+        assertEquals("Could not read checksum metadata from $source.", error.message)
     }
 
     @Test
