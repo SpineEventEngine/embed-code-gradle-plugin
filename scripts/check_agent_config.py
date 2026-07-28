@@ -15,6 +15,7 @@ MAX_MARKDOWN_LINE_LENGTH = 100
 SKILLS_DIRECTORY = Path(".agents/skills")
 CLAUDE_COMMANDS_DIRECTORY = Path(".claude/commands")
 AGENT_DOCUMENTS = (
+    Path("README.md"),
     Path("AGENTS.md"),
     Path("PROJECT.md"),
     Path("CLAUDE.md"),
@@ -403,6 +404,8 @@ def _validate_markdown_format(root: Path, files: list[Path]) -> list[Diagnostic]
             if (
                 open_fence is None
                 and not is_fence
+                and REFERENCE_LINK_PATTERN.match(line) is None
+                and not line.lstrip().startswith("[![")
                 and len(line.expandtabs(4)) > MAX_MARKDOWN_LINE_LENGTH
             ):
                 diagnostics.append(

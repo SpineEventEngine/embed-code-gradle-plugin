@@ -24,10 +24,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import dev.detekt.gradle.Detekt as DetektTask
+import dev.detekt.gradle.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `kotlin-dsl`
+    // Detekt 1.23.8 does not support JDK 25. Keep this version in sync with
+    // `detektVersion` below.
+    id("dev.detekt") version "2.0.0-alpha.5"
 }
 
 // These bootstrap versions are declared here because `buildSrc` needs them
@@ -35,10 +40,11 @@ plugins {
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
 val licenseReportVersion = "3.1.4"
+val dokkaVersion = "2.2.0"
 // Keep in sync with `io.spine.embedcode.gradle.dependency.JUnit.version`, which supplies
 // the same version to the project's own modules.
 val junitVersion = "6.1.2"
-// The alpha version is used because the latest stable version does not support JDK 25.
+// Keep in sync with the `dev.detekt` plugin version above.
 val detektVersion = "2.0.0-alpha.5"
 
 dependencies {
@@ -51,6 +57,7 @@ dependencies {
     implementation(
         "dev.detekt:dev.detekt.gradle.plugin:$detektVersion",
     )
+    implementation("org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion")
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -69,6 +76,21 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+extensions.configure<DetektExtension> {
+    config.setFrom(layout.projectDirectory.file("../config/detekt/detekt.yml"))
+    buildUponDefaultConfig.set(true)
+    source.setFrom(
+        files(
+            "src/main/kotlin",
+            "src/test/kotlin",
+        ),
+    )
+}
+
+tasks.withType<DetektTask>().configureEach {
+    jvmTarget.set(JavaVersion.VERSION_17.majorVersion)
 }
 
 tasks.test {

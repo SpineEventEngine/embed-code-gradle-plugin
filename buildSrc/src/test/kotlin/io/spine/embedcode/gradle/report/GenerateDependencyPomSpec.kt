@@ -26,14 +26,26 @@
 
 package io.spine.embedcode.gradle.report
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
+import java.nio.file.Path
+import org.gradle.api.Action
+import org.gradle.api.Project
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 
 @DisplayName("Aggregate dependency POM generation should")
 internal class GenerateDependencyPomSpec {
+
+    @TempDir
+    lateinit var repositoryRoot: Path
 
     @Test
     fun `map build configurations to representative Maven scopes`() {
@@ -57,29 +69,83 @@ internal class GenerateDependencyPomSpec {
         compileOnly.dependencies.add(project.dependencies.create(dependency))
         testImplementation.dependencies.add(project.dependencies.create(dependency))
 
-        val dependencies = collectDependencies(project.configurations)
+        val pom = generatePom(project)
 
-        assertEquals(1, dependencies.size)
-        assertEquals(MavenScope.PROVIDED, dependencies.single().scope)
+        assertEquals(1, "<dependency>".toRegex().findAll(pom).count())
+        assertTrue(pom.contains("<artifactId>shared</artifactId>"))
+        assertTrue(pom.contains("<scope>provided</scope>"))
     }
 
     @Test
-    fun `compare numeric version segments when selecting a declared version`() {
+    fun `use the resolved version from a configured dependency source`() {
         val project = ProjectBuilder.builder().build()
         val implementation = project.configurations.create("implementation") {
-            isCanBeResolved = false
+            isCanBeConsumed = false
+            isCanBeResolved = true
         }
-        val testImplementation = project.configurations.create("testImplementation") {
-            isCanBeResolved = false
-        }
-        implementation.dependencies.add(project.dependencies.create("org.example:shared:1.9"))
-        testImplementation.dependencies.add(
-            project.dependencies.create("org.example:shared:1.10"),
+        createMavenModule("org.example", "shared", "1.10")
+        project.repositories.maven(
+            Action<MavenArtifactRepository> {
+                setUrl(repositoryRoot.toUri())
+            },
         )
+        implementation.resolutionStrategy.force("org.example:shared:1.10")
+        implementation.dependencies.add(project.dependencies.create("org.example:shared:1.9"))
 
-        val dependency = collectDependencies(project.configurations).single()
+        val pom = generatePom(project)
 
-        assertEquals("1.10", dependency.version)
+        assertTrue(pom.contains("<version>1.10</version>"))
+        assertFalse(pom.contains("<version>1.9</version>"))
+    }
+
+    @Test
+    fun `compare numeric version segments numerically`() {
+        assertTrue(dependencyVersionComparator.compare("1.10", "1.9") > 0)
+    }
+
+    @Test
+    fun `treat leading zeros as insignificant in numeric version segments`() {
+        assertEquals(0, dependencyVersionComparator.compare("1.09", "1.9"))
+    }
+
+    @Test
+    fun `prefer release versions to their prereleases`() {
+        assertTrue(dependencyVersionComparator.compare("2.0.0", "2.0.0-alpha.5") > 0)
+        assertTrue(dependencyVersionComparator.compare("1.0.0", "1.0.0-RC1") > 0)
+    }
+
+    @Test
+    fun `round trip task input fields with separators and empty values`() {
+        val fields =
+            listOf(
+                "org.example",
+                "shared:fixtures",
+                "",
+                "functionalTest:implementation",
+            )
+
+        val decoded =
+            encodeTaskInput(*fields.toTypedArray())
+                .decodeTaskInput(expectedFieldCount = fields.size)
+
+        assertEquals(fields, decoded)
+    }
+
+    @Test
+    fun `reject malformed encoded task input`() {
+        val malformedInputs =
+            listOf(
+                "3abc",
+                "x:abc",
+                "4:abc",
+                "3:abc1:x",
+            )
+
+        malformedInputs.forEach { input ->
+            assertThrows(IllegalStateException::class.java) {
+                input.decodeTaskInput(expectedFieldCount = 1)
+            }
+        }
     }
 
     @Test
@@ -115,5 +181,42 @@ internal class GenerateDependencyPomSpec {
         assertTrue(pom.contains("<artifactId>tooling</artifactId>"))
         assertTrue(pom.contains("<scope>provided</scope>"))
         assertTrue(pom.contains("is not suitable for Maven build tasks"))
+    }
+
+    private fun generatePom(project: Project): String {
+        val task =
+            project.tasks
+                .register("generateDependencyPom", GenerateDependencyPom::class.java)
+                .get()
+        task.groupId.set("io.spine.tools")
+        task.artifactId.set("embed-code-gradle-plugin")
+        task.projectVersion.set("0.1.1")
+        task.outputFile.set(project.layout.buildDirectory.file("reports/dependencies/pom.xml"))
+        task.dependenciesFrom(project.configurations)
+
+        task.generate()
+
+        return Files.readString(task.outputFile.get().asFile.toPath(), UTF_8)
+    }
+
+    private fun createMavenModule(group: String, artifact: String, version: String) {
+        val moduleDirectory =
+            repositoryRoot
+                .resolve(group.replace('.', '/'))
+                .resolve(artifact)
+                .resolve(version)
+        Files.createDirectories(moduleDirectory)
+        Files.writeString(
+            moduleDirectory.resolve("$artifact-$version.pom"),
+            """
+            <project>
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>$group</groupId>
+              <artifactId>$artifact</artifactId>
+              <version>$version</version>
+            </project>
+            """.trimIndent(),
+            UTF_8,
+        )
     }
 }

@@ -24,11 +24,12 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `version.gradle.kts`: the plugin version and default Embed Code application version.
 - `gradle.properties`: Gradle runtime, parallelism, build-cache, and configuration-cache
   settings, plus Kotlin style and dependency defaults.
-- `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module`
-  convention. Its focused unit tests cover custom report logic; Detekt analyzes the plugin module
-  through the convention but does not analyze the standalone `buildSrc` build.
+- `buildSrc/`: build settings, dependency coordinates, and the shared `jvm-module` and Dokka
+  conventions. Its focused unit tests cover custom report logic, and its own Detekt configuration
+  analyzes the build logic.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
-  test source set, publication metadata, and Plugin Portal configuration.
+  test source set, Dokka API documentation, publication metadata, and Plugin Portal
+  configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
   download, installation, and execution logic.
 - `gradle-plugin/src/main/templates/`: generated default-version source template.
@@ -65,9 +66,10 @@ configuration → executable flow instead of patching only the first visible sym
 - `gradle-plugin/build.gradle.kts` uses the Kotlin runtime supplied by Gradle;
   it does not publish `kotlin-stdlib`.
 - Settings plugin versions are pinned in the root `settings.gradle.kts`;
-  `buildSrc/settings.gradle.kts` reuses that plugin classpath. Bootstrap plugin versions live
-  in `buildSrc/build.gradle.kts`, while reusable library coordinates live in Kotlin objects
-  under `buildSrc`. Do not introduce a version catalog as an unrelated refactor.
+  `buildSrc/settings.gradle.kts` reuses that plugin classpath. Bootstrap and convention-plugin
+  dependency versions live in `buildSrc/build.gradle.kts`, while reusable library coordinates
+  live in Kotlin objects under `buildSrc`. Do not introduce a version catalog as an unrelated
+  refactor.
 - The Foojay resolver may contact `api.foojay.io` and let Gradle download a missing JDK
   toolchain for contributor builds. CI provisions its required JDKs before invoking Gradle.
   This build-time provisioning is outside the plugin's SHA-256 verification of Embed Code
@@ -85,8 +87,8 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
-- Use `./gradlew :buildSrc:test` for the build-logic tests. `buildSrc` is a separate build,
-  so `check` does not reach them; CI runs the task explicitly.
+- Use `./gradlew :buildSrc:check` for the build-logic tests and Detekt analysis. `buildSrc` is a
+  separate build, so the root `check` task does not reach them; CI runs the task explicitly.
 - Use `./gradlew generateDependencyReports` after changing dependencies or the plugin version.
   CI verifies that the aggregate dependency POM and module license inventory match `pom.xml`
   and `dependencies.md`.

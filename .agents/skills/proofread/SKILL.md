@@ -67,16 +67,15 @@ wrong fix.** When a fix is not clearly correct, leave the text and report it.
    untracked, non-ignored files (new prose not yet `git add`ed) alongside tracked
    changes. Keep them, then intersect the whole list with the file-type filter.
 
-   **Then drop everything the project does not own**, per
-   `.agents/guidelines/project-owned-files.md` — submodule contents and, in
-   a repo that consumes `config`, the config-distributed files. This skill
-   processes prose, so of the config-distributed set it encounters the
-   Markdown members (`AGENTS.md`, `CLAUDE.md`, `CODE_OF_CONDUCT.md`,
-   `.junie/guidelines.md`, `.github/copilot-instructions.md`, and the
-   conditional `CONTRIBUTING.md`) and the source members under `buildSrc/`
-   (except `buildSrc/src/main/kotlin/module.gradle.kts`). Apply the skip in
-   every mode; in the `config` and `agents` source repos the config rule is
-   inert (those files are project-owned there).
+   **Apply the repository-specific ownership conclusion.** This repository has
+   no `.gitmodules`, so it has no project-ownership exclusions. Keep every
+   candidate that survives the file filter, including Markdown files at the
+   repository root and eligible source files under `buildSrc/`.
+
+   If this skill is reused in another repository, follow
+   `.agents/guidelines/project-owned-files.md`. Drop submodule contents only
+   when `.gitmodules` declares them, and drop `config`-distributed files only
+   when `.gitmodules` declares the `config` submodule.
 
 3. **Scan and fix each file.** Restrict edits to **prose only**, per the
    “Where English prose lives” and “Never edit” sections of

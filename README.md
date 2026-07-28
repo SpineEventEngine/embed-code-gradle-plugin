@@ -33,7 +33,7 @@ Add the following configuration to the project's `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.spine.embed-code") version "0.1.0" // Specify the actual version here.
+    id("io.spine.embed-code") version "0.1.1" // Specify the actual version here.
 }
 
 embedCode {

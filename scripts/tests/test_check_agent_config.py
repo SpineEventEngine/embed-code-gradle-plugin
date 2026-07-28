@@ -30,6 +30,12 @@ description: >-
 """,
         )
         self._write(
+            "README.md",
+            """\
+# Example project
+""",
+        )
+        self._write(
             "AGENTS.md",
             """\
 # Agent instructions
@@ -101,6 +107,7 @@ Load skills directly from `.agents/skills/`.
         """Reject absent agent entry points and the canonical skills directory."""
 
         for relative_path in (
+            "README.md",
             "AGENTS.md",
             "PROJECT.md",
             "CLAUDE.md",
@@ -392,6 +399,63 @@ name: alpha
                 for message in messages
             )
         )
+
+    def test_validates_readme_markdown(self) -> None:
+        """Apply link and formatting checks to the consumer README."""
+
+        self._write(
+            "README.md",
+            "\n".join(
+                (
+                    "# Example project",
+                    "",
+                    "Read [missing](missing.md).",
+                    "x" * 101,
+                    "",
+                )
+            ),
+        )
+
+        messages = self._messages()
+
+        self.assertTrue(
+            any(
+                "README.md:3: relative link target does not exist" in message
+                for message in messages
+            )
+        )
+        self.assertTrue(
+            any(
+                "README.md:4: line exceeds 100 characters" in message
+                for message in messages
+            )
+        )
+
+    def test_ignores_machine_read_markdown_lines(self) -> None:
+        """Allow long badge markup and reference definitions."""
+
+        badge = (
+            "[![license](https://img.shields.io/badge/"
+            + "license-"
+            + "x" * 100
+            + ")](https://www.apache.org/licenses/LICENSE-2.0)"
+        )
+        reference = "[license]: https://example.com/" + "x" * 100
+        self._write(
+            "README.md",
+            "\n".join(
+                (
+                    badge,
+                    "",
+                    "# Example project",
+                    "",
+                    reference,
+                    "",
+                )
+            ),
+        )
+
+        self.assertEqual([], self._messages())
 
     def test_accepts_colliding_duplicate_heading_anchors(self) -> None:
         """Match GitHub suffixes when a heading collides with a generated anchor."""
