@@ -1,5 +1,17 @@
 # Project-owned files
 
+## Rule for this repository
+
+This repository has no `.gitmodules`, so it has no submodule contents or
+`config`-distributed files to exclude. Treat every tracked path as project-owned,
+including `buildSrc/`, `AGENTS.md`, `CLAUDE.md`, `gradle.properties`,
+`.github/copilot-instructions.md`, and `.idea/`. Its `config/` directory contains
+project-owned Detekt configuration.
+
+Do not apply the reusable skip rules below in this repository.
+
+## Why ownership matters
+
 Some skills edit or stamp files across a whole repository. For example,
 `proofread` rewrites prose. These skills must touch only the files the
 repository **owns**. Editing an upstream file is worse than a no-op: the
@@ -10,14 +22,12 @@ This page defines *project-owned* and the two kinds of upstream-owned paths to
 skip. Each consuming skill applies the rule to its file types; this page defines
 the shared mechanism, while the file filter remains in the consuming skill.
 
+## Reusable rules for repositories with submodules
+
+Apply these rules only when `.gitmodules` declares the relevant submodule.
 Determine submodule ownership from `.gitmodules`, never from a directory name.
-This repository currently has no `.gitmodules`. Its `config/` directory contains
-project-owned Detekt configuration, so neither skip rule applies here.
-
-## What to skip
-
-A repository does **not** own two kinds of tracked files. Skip both in every
-mode: full sweeps, scoped sweeps, and incremental branch-diff runs alike.
+A repository does **not** own the two kinds of tracked files below. Skip them
+in every mode: full sweeps, scoped sweeps, and incremental branch-diff runs alike.
 
 ### 1. Submodule contents
 
