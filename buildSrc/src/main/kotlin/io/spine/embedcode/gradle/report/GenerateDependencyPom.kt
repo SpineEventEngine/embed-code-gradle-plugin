@@ -257,7 +257,7 @@ internal val dependencyVersionComparator =
             .firstNotNullOfOrNull { (firstSegment, secondSegment) ->
                 compareVersionSegments(firstSegment, secondSegment).takeIf { it != 0 }
             }
-            ?: firstSegments.size.compareTo(secondSegments.size)
+            ?: compareUnmatchedVersionSegments(firstSegments, secondSegments)
     }
 
 private val resolvedVersionComparator =
@@ -281,6 +281,28 @@ private fun compareVersionSegments(first: String, second: String): Int {
         ?: normalizedFirst.compareTo(normalizedSecond)
 }
 
+private fun compareUnmatchedVersionSegments(
+    first: List<String>,
+    second: List<String>,
+): Int {
+    val sharedSegmentCount = minOf(first.size, second.size)
+    val unmatched =
+        if (first.size > second.size) {
+            first.drop(sharedSegmentCount)
+        } else {
+            second.drop(sharedSegmentCount)
+        }
+    val order =
+        when {
+            unmatched.any { segment -> segment.any(Char::isLetter) } -> -1
+            unmatched.any { segment ->
+                segment.all(Char::isDigit) && segment.any { character -> character != '0' }
+            } -> 1
+            else -> 0
+        }
+    return if (first.size > second.size) order else -order
+}
+
 private fun DeclaredDependency.toTaskInput(): String =
     encodeTaskInput(
         group,
@@ -293,12 +315,12 @@ private fun ResolvedVersion.toTaskInput(): String =
     encodeTaskInput(group, artifact, version)
 
 private fun String.toDeclaredDependency(): DeclaredDependency {
-    val fields = decodeTaskInput(expectedFieldCount = 4).iterator()
+    val fields = decodeTaskInput(expectedFieldCount = 4)
     return DeclaredDependency(
-        group = fields.next(),
-        artifact = fields.next(),
-        configuredVersion = fields.next().takeIf(String::isNotEmpty),
-        configurationName = fields.next(),
+        group = fields[0],
+        artifact = fields[1],
+        configuredVersion = fields[2].takeIf(String::isNotEmpty),
+        configurationName = fields[3],
     )
 }
 
