@@ -37,11 +37,13 @@ import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Sync
 import org.gradle.plugin.compatibility.compatibility
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
     id("jvm-module")
     id("dokka-configuration")
     `java-gradle-plugin`
+    jacoco
     `maven-publish`
 }
 
@@ -113,8 +115,63 @@ val functionalTest = tasks.register<Test>("functionalTest") {
     shouldRunAfter(tasks.test)
 }
 
+val testKitCoverageData = layout.buildDirectory.file("jacoco/testKit.exec")
+val coverageFunctionalTest = tasks.register<Test>("coverageFunctionalTest") {
+    description = "Runs TestKit functional tests and collects plugin coverage."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = functionalTestSourceSet.output.classesDirs
+    classpath = functionalTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(BuildSettings.bytecodeVersion))
+        },
+    )
+    extensions.configure<JacocoTaskExtension> {
+        isEnabled = false
+        setDestinationFile(testKitCoverageData.map { file -> file.asFile })
+    }
+    outputs.file(testKitCoverageData)
+    outputs.doNotCacheIf("TestKit builds depend on the host environment.") { true }
+    notCompatibleWithConfigurationCache(
+        "JaCoCo coverage of forked TestKit builds requires execution-time agent paths.",
+    )
+    doFirst {
+        val coverageDataFile = testKitCoverageData.get().asFile
+        coverageDataFile.delete()
+        val jacocoExtension = extensions.getByType<JacocoTaskExtension>()
+        val childJvmArgument =
+            Regex("""destfile=[^,]+""").replaceFirst(
+                jacocoExtension.asJvmArg,
+                Regex.escapeReplacement("destfile=${coverageDataFile.absolutePath}"),
+            )
+        systemProperty(
+            "io.spine.embedcode.gradle.testkit.coverage.jvm-argument",
+            childJvmArgument,
+        )
+    }
+    shouldRunAfter(tasks.test)
+}
+
 tasks.check {
     dependsOn(functionalTest)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test, coverageFunctionalTest)
+    executionData(
+        tasks.test.map { task ->
+            task.extensions.getByType<JacocoTaskExtension>().destinationFile
+        },
+        coverageFunctionalTest.map { task ->
+            task.extensions.getByType<JacocoTaskExtension>().destinationFile
+        },
+    )
+    reports {
+        xml.required.set(true)
+        html.required.set(false)
+        csv.required.set(false)
+    }
 }
 
 base {

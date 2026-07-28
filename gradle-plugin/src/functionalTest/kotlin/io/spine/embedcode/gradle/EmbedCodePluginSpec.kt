@@ -111,9 +111,9 @@ internal class EmbedCodePluginSpec {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reuse the configuration cache`() {
-        runner(":checkEmbedding").build()
+        runner(":checkEmbedding", collectCoverage = false).build()
 
-        val result = runner(":checkEmbedding").build()
+        val result = runner(":checkEmbedding", collectCoverage = false).build()
 
         result.output shouldContain "Reusing configuration cache."
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
@@ -1051,9 +1051,16 @@ internal class EmbedCodePluginSpec {
      */
     private fun runner(
         vararg arguments: String,
+        collectCoverage: Boolean = testKitCoverageJvmArgument != null,
     ): GradleRunner {
         val gradleArguments = arguments.toMutableList()
-        gradleArguments.add("--configuration-cache")
+        if (collectCoverage) {
+            gradleArguments.add(
+                "-Dorg.gradle.jvmargs=${requireNotNull(testKitCoverageJvmArgument)}",
+            )
+        } else {
+            gradleArguments.add("--configuration-cache")
+        }
         gradleArguments.add("--stacktrace")
         return GradleRunner.create()
             .withProjectDir(projectDirectory.toFile())
@@ -1065,7 +1072,7 @@ internal class EmbedCodePluginSpec {
      * Runs check mode with [gradleVersion].
      */
     private fun runCheckModeWithGradle(gradleVersion: String) {
-        val result = runner(":checkEmbedding")
+        val result = runner(":checkEmbedding", collectCoverage = false)
             .withGradleVersion(gradleVersion)
             .build()
 
@@ -1283,7 +1290,12 @@ internal class EmbedCodePluginSpec {
     private val HttpServer.releaseBaseUrl: String
         get() = "http://127.0.0.1:${address.port}/releases"
 
+    private val testKitCoverageJvmArgument: String?
+        get() = System.getProperty(TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY)
+
     private companion object {
+        const val TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY =
+            "io.spine.embedcode.gradle.testkit.coverage.jvm-argument"
         val TEST_RELEASE_TAG = DEFAULT_EMBED_CODE_VERSION
         val TEST_RELEASE_VERSION = TEST_RELEASE_TAG.removePrefix("v")
     }
