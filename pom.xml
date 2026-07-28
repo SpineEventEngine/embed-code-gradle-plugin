@@ -38,6 +38,36 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.jetbrains.dokka</groupId>
+      <artifactId>all-modules-page-plugin</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.dokka</groupId>
+      <artifactId>analysis-kotlin-symbols</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.dokka</groupId>
+      <artifactId>dokka-base</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.dokka</groupId>
+      <artifactId>dokka-core</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.dokka</groupId>
+      <artifactId>templating-plugin</artifactId>
+      <version>2.2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.jetbrains.kotlin</groupId>
       <artifactId>kotlin-build-tools-compat</artifactId>
       <version>2.4.10</version>

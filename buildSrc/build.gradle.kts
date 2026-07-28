@@ -38,6 +38,7 @@ plugins {
 val kotlinVersion = "2.4.10"
 val pluginPublishVersion = "2.1.1"
 val licenseReportVersion = "3.1.4"
+val dokkaVersion = "2.2.0"
 // Keep in sync with `io.spine.embedcode.gradle.dependency.JUnit.version`, which supplies
 // the same version to the project's own modules.
 val junitVersion = "6.1.2"
@@ -54,6 +55,7 @@ dependencies {
     implementation(
         "dev.detekt:dev.detekt.gradle.plugin:$detektVersion",
     )
+    implementation("org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion")
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
