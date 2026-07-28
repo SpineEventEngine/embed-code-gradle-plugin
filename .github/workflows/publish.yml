@@ -1,0 +1,71 @@
+name: Publish
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradle-plugin-portal
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decrypt Gradle Plugin Portal Credentials
+        env:
+          GRADLE_PORTAL_CREDENTIALS_KEY: ${{ secrets.GRADLE_PORTAL_CREDENTIALS_KEY }}
+        run: |
+          if [[ -z "$GRADLE_PORTAL_CREDENTIALS_KEY" ]]; then
+            echo "::error::The GRADLE_PORTAL_CREDENTIALS_KEY secret is unavailable." \
+              "Grant this repository access to the organization secret."
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.gradle"
+          printf '%s' "$GRADLE_PORTAL_CREDENTIALS_KEY" |
+            gpg \
+              --quiet \
+              --batch \
+              --yes \
+              --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --output "$HOME/.gradle/gradle.properties" \
+              --decrypt .github/keys/gradle-plugin-portal.secret.properties.gpg
+          chmod 600 "$HOME/.gradle/gradle.properties"
+
+      - name: Require Master for Publication
+        if: ${{ inputs.publish == true }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Run publication from the master branch."
+            exit 1
+          fi
+
+      - name: Validate Plugin Portal Publication
+        if: ${{ inputs.publish == false }}
+        run: ./gradlew :gradle-plugin:publishPlugins --validate-only
+
+#      - name: Publish to Gradle Plugin Portal
+#        if: ${{ inputs.publish == true }}
+#        run: ./gradlew :gradle-plugin:publishPlugins
+
+      - name: Remove Decrypted Credentials
+        if: ${{ always() }}
+        run: rm -f "$HOME/.gradle/gradle.properties"
