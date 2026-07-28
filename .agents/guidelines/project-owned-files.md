@@ -4,9 +4,9 @@
 
 This repository has no `.gitmodules`, so it has no submodule contents or
 `config`-distributed files to exclude. Treat every tracked path as project-owned,
-including `buildSrc/`, `AGENTS.md`, `CLAUDE.md`, `gradle.properties`,
-`.github/copilot-instructions.md`, and `.idea/`. Its `config/` directory contains
-project-owned Detekt configuration.
+including `buildSrc/`, `AGENTS.md`, `CLAUDE.md`, `gradle.properties`, and
+`.github/copilot-instructions.md`. Its `config/` directory contains project-owned
+Detekt configuration.
 
 Do not apply the reusable skip rules below in this repository.
 

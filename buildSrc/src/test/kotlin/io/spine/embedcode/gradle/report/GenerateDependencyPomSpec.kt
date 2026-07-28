@@ -45,7 +45,7 @@ import org.junit.jupiter.api.io.TempDir
 internal class GenerateDependencyPomSpec {
 
     @TempDir
-    lateinit var projectDirectory: Path
+    lateinit var repositoryRoot: Path
 
     @Test
     fun `map build configurations to representative Maven scopes`() {
@@ -86,7 +86,7 @@ internal class GenerateDependencyPomSpec {
         createMavenModule("org.example", "shared", "1.10")
         project.repositories.maven(
             Action<MavenArtifactRepository> {
-                setUrl(projectDirectory.resolve("repository").toUri())
+                setUrl(repositoryRoot.toUri())
             },
         )
         implementation.resolutionStrategy.force("org.example:shared:1.10")
@@ -101,6 +101,17 @@ internal class GenerateDependencyPomSpec {
     @Test
     fun `compare numeric version segments numerically`() {
         assertTrue(dependencyVersionComparator.compare("1.10", "1.9") > 0)
+    }
+
+    @Test
+    fun `treat leading zeros as insignificant in numeric version segments`() {
+        assertEquals(0, dependencyVersionComparator.compare("1.09", "1.9"))
+    }
+
+    @Test
+    fun `prefer release versions to their prereleases`() {
+        assertTrue(dependencyVersionComparator.compare("2.0.0", "2.0.0-alpha.5") > 0)
+        assertTrue(dependencyVersionComparator.compare("1.0.0", "1.0.0-RC1") > 0)
     }
 
     @Test
@@ -190,8 +201,7 @@ internal class GenerateDependencyPomSpec {
 
     private fun createMavenModule(group: String, artifact: String, version: String) {
         val moduleDirectory =
-            projectDirectory
-                .resolve("repository")
+            repositoryRoot
                 .resolve(group.replace('.', '/'))
                 .resolve(artifact)
                 .resolve(version)
