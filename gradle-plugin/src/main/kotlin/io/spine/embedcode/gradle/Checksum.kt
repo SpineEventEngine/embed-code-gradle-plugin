@@ -28,7 +28,10 @@ package io.spine.embedcode.gradle
 
 import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
+import java.io.IOException
+import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URLConnection
 import java.net.URLEncoder
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
@@ -40,6 +43,8 @@ import java.security.MessageDigest
 import java.util.HexFormat
 
 private const val SHA256_LENGTH = 64
+private const val FIRST_SUCCESSFUL_HTTP_STATUS = 200
+private const val LAST_SUCCESSFUL_HTTP_STATUS = 299
 
 /**
  * Calculates the lowercase SHA-256 digest of [file].
@@ -137,6 +142,57 @@ internal fun parseGitHubAssetSha256(json: String, assetName: String): String {
                 "Configure `embedCode.sha256` explicitly.",
         )
     return normalizeSha256(digest)
+}
+
+/**
+ * Reads GitHub release metadata with [readMetadata] and limits token use to the GitHub API host.
+ */
+internal fun readGitHubReleaseMetadata(
+    source: URI,
+    githubToken: String?,
+    readMetadata: (URI, String?) -> String,
+): String {
+    val token = if (source.host.equals("api.github.com", ignoreCase = true)) {
+        githubToken?.trim()?.ifEmpty { null }
+    } else {
+        null
+    }
+    return readMetadata(source, token)
+}
+
+/**
+ * Reads UTF-8 checksum metadata from [source] without following HTTP redirects.
+ */
+internal fun readChecksumMetadata(source: URI, githubToken: String? = null): String {
+    var connection: URLConnection? = null
+    try {
+        connection = source.toURL().openConnection()
+        connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MILLIS
+        connection.readTimeout = HTTP_READ_TIMEOUT_MILLIS
+        connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
+        connection.setRequestProperty("Accept", "application/vnd.github+json")
+        if (githubToken != null) {
+            connection.setRequestProperty("Authorization", "Bearer $githubToken")
+        }
+        if (connection is HttpURLConnection) {
+            connection.instanceFollowRedirects = false
+            val status = connection.responseCode
+            if (status < FIRST_SUCCESSFUL_HTTP_STATUS || status > LAST_SUCCESSFUL_HTTP_STATUS) {
+                throw GradleException(
+                    "Could not read checksum metadata: HTTP $status from $source.",
+                )
+            }
+        }
+        return connection.getInputStream()
+            .bufferedReader(StandardCharsets.UTF_8)
+            .use { reader -> reader.readText() }
+    } catch (exception: IOException) {
+        throw GradleException("Could not read checksum metadata from $source.", exception)
+    } finally {
+        if (connection is HttpURLConnection) {
+            connection.disconnect()
+        }
+    }
 }
 
 /**

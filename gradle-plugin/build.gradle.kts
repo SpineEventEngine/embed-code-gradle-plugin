@@ -34,14 +34,17 @@ import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
 import io.spine.embedcode.gradle.report.GenerateDependencyPom
 import io.spine.embedcode.gradle.report.UpdateDependencyReports
 import org.apache.tools.ant.filters.ReplaceTokens
+import org.gradle.api.Action
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Sync
 import org.gradle.plugin.compatibility.compatibility
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
     id("jvm-module")
     id("dokka-configuration")
     `java-gradle-plugin`
+    jacoco
     `maven-publish`
 }
 
@@ -98,9 +101,7 @@ configurations[functionalTestSourceSet.runtimeOnlyConfigurationName].extendsFrom
     configurations.testRuntimeOnly.get(),
 )
 
-val functionalTest = tasks.register<Test>("functionalTest") {
-    description = "Runs TestKit functional tests."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
+val configureFunctionalTest = Action<Test> {
     testClassesDirs = functionalTestSourceSet.output.classesDirs
     classpath = functionalTestSourceSet.runtimeClasspath
     useJUnitPlatform()
@@ -113,8 +114,64 @@ val functionalTest = tasks.register<Test>("functionalTest") {
     shouldRunAfter(tasks.test)
 }
 
+val functionalTest = tasks.register<Test>("functionalTest") {
+    configureFunctionalTest.execute(this)
+    description = "Runs TestKit functional tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    extensions.configure<JacocoTaskExtension> {
+        isEnabled = false
+    }
+}
+
+val testKitCoverageData = layout.buildDirectory.file("jacoco/testKit.exec")
+val coverageFunctionalTest = tasks.register<Test>("coverageFunctionalTest") {
+    configureFunctionalTest.execute(this)
+    description = "Runs TestKit functional tests and collects plugin coverage."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    extensions.configure<JacocoTaskExtension> {
+        isEnabled = false
+        setDestinationFile(testKitCoverageData.map { file -> file.asFile })
+    }
+    outputs.file(testKitCoverageData)
+    notCompatibleWithConfigurationCache(
+        "JaCoCo coverage of forked TestKit builds requires execution-time agent paths.",
+    )
+    doFirst {
+        val coverageDataFile = testKitCoverageData.get().asFile
+        coverageDataFile.delete()
+        val jacocoExtension = extensions.getByType<JacocoTaskExtension>()
+        // TestKit daemons use another working directory, so JaCoCo needs an absolute destination.
+        val childJvmArgument =
+            Regex("""destfile=[^,]+""").replaceFirst(
+                jacocoExtension.asJvmArg,
+                Regex.escapeReplacement("destfile=${coverageDataFile.absolutePath}"),
+            )
+        systemProperty(
+            "io.spine.embedcode.gradle.testkit.coverage.jvm-argument",
+            childJvmArgument,
+        )
+    }
+}
+
 tasks.check {
     dependsOn(functionalTest)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test, coverageFunctionalTest)
+    executionData(
+        tasks.test.map { task ->
+            task.extensions.getByType<JacocoTaskExtension>().destinationFile
+        },
+        coverageFunctionalTest.map { task ->
+            task.extensions.getByType<JacocoTaskExtension>().destinationFile
+        },
+    )
+    reports {
+        xml.required.set(true)
+        html.required.set(false)
+        csv.required.set(false)
+    }
 }
 
 base {

@@ -54,6 +54,9 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.zip.ZipInputStream
 
+internal const val HTTP_CONNECT_TIMEOUT_MILLIS = 30_000
+internal const val HTTP_READ_TIMEOUT_MILLIS = 120_000
+
 /**
  * Downloads and prepares the Embed Code executable selected for the host.
  *
@@ -422,12 +425,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         releaseTag,
         asset,
     ) { metadataSource ->
-        val token = if (metadataSource.host.equals("api.github.com", ignoreCase = true)) {
-            githubToken.orNull?.trim()?.ifEmpty { null }
-        } else {
-            null
-        }
-        readText(metadataSource, token)
+        readGitHubReleaseMetadata(metadataSource, githubToken.orNull, ::readChecksumMetadata)
     }
 
     /**
@@ -488,166 +486,7 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
 
     private companion object {
 
-        const val CONNECT_TIMEOUT_MILLIS = 30_000
-        const val READ_TIMEOUT_MILLIS = 120_000
         const val BUFFER_SIZE = 8_192
-
-        /**
-         * Detects symbolic links and directory redirects such as Windows junctions.
-         */
-        fun isRedirectingFileSystemEntry(path: Path): Boolean {
-            return try {
-                if (Files.isSymbolicLink(path)) {
-                    true
-                } else {
-                    val parent = path.parent ?: return false
-                    val expectedRealPath = parent.toRealPath().resolve(path.fileName).normalize()
-                    path.toRealPath() != expectedRealPath
-                }
-            } catch (exception: IOException) {
-                throw GradleException(
-                    "Could not inspect Embed Code installation path `$path`.",
-                    exception,
-                )
-            }
-        }
-
-        /**
-         * Owns the normalized installation root and validates paths used by one task action.
-         *
-         * The task checks all configured paths before [prepare] creates the root. Later
-         * operations reuse this instance and recheck the root without repeating its creation.
-         */
-        private class InstallationDirectory(path: Path) {
-
-            private val root = path.toAbsolutePath().normalize()
-
-            /**
-             * Normalizes [path] and verifies that it is a strict descendant of the root.
-             */
-            fun requireInside(path: Path): Path {
-                val normalizedPath = path.toAbsolutePath().normalize()
-                if (normalizedPath == root || !normalizedPath.startsWith(root)) {
-                    throw GradleException(
-                        "Embed Code installation path `$normalizedPath` " +
-                            "must remain inside `$root`.",
-                    )
-                }
-                return normalizedPath
-            }
-
-            /**
-             * Creates the installation root and rejects a symlink or non-directory root.
-             */
-            fun prepare() {
-                try {
-                    if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
-                        Files.createDirectories(root)
-                    }
-                } catch (exception: IOException) {
-                    throw GradleException(
-                        "Could not create Embed Code installation directory `$root`.",
-                        exception,
-                    )
-                }
-                requireRealRoot()
-            }
-
-            /**
-             * Rejects a symbolic-link, redirecting, missing, or non-directory root.
-             */
-            private fun requireRealRoot() {
-                if (
-                    isRedirectingFileSystemEntry(root) ||
-                    !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)
-                ) {
-                    throw GradleException(
-                        "Embed Code installation directory `$root` must be a real directory, " +
-                            "not a symbolic link or redirecting entry.",
-                    )
-                }
-            }
-
-            /**
-             * Rejects symbolic links in every existing component from the installation root.
-             */
-            fun requireNoSymbolicLinks(path: Path) {
-                requireRealRoot()
-                val normalizedPath = requireInside(path)
-                var current = root
-                root.relativize(normalizedPath).forEach { component ->
-                    current = current.resolve(component)
-                    if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                        if (isRedirectingFileSystemEntry(current)) {
-                            throw GradleException(
-                                "Embed Code installation path `$current` must not be a " +
-                                    "symbolic link or redirecting filesystem entry.",
-                            )
-                        }
-                        if (
-                            current != normalizedPath &&
-                            !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
-                        ) {
-                            throw GradleException(
-                                "Embed Code installation path component `$current` " +
-                                    "must be a directory.",
-                            )
-                        }
-                    }
-                }
-            }
-
-            /**
-             * Creates [directory] component by component without following symbolic links.
-             */
-            fun createDirectoriesSafely(directory: Path) {
-                requireRealRoot()
-                val normalizedDirectory = directory.toAbsolutePath().normalize()
-                if (normalizedDirectory != root) {
-                    requireInside(normalizedDirectory)
-                }
-                var current = root
-                root.relativize(normalizedDirectory).forEach { component ->
-                    current = current.resolve(component)
-                    if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                        if (
-                            isRedirectingFileSystemEntry(current) ||
-                            !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)
-                        ) {
-                            throw GradleException(
-                                "Embed Code installation directory `$current` " +
-                                    "must be a real directory, not a symbolic link " +
-                                    "or redirecting entry.",
-                            )
-                        }
-                    } else {
-                        try {
-                            Files.createDirectory(current)
-                        } catch (exception: IOException) {
-                            throw GradleException(
-                                "Could not create Embed Code installation directory `$current`.",
-                                exception,
-                            )
-                        }
-                    }
-                }
-                requireRealPathInside(normalizedDirectory)
-            }
-
-            /**
-             * Verifies that [directory] resolves below the real installation root.
-             */
-            private fun requireRealPathInside(directory: Path) {
-                val realRoot = root.toRealPath()
-                val realDirectory = directory.toRealPath()
-                if (!realDirectory.startsWith(realRoot)) {
-                    throw GradleException(
-                        "Embed Code installation directory `$realDirectory` " +
-                            "must remain inside `$realRoot`.",
-                    )
-                }
-            }
-        }
 
         /**
          * Adds an upgrade hint when an exact tag may be missing its former automatic prefix.
@@ -679,8 +518,8 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
             var connection: URLConnection? = null
             try {
                 connection = source.toURL().openConnection()
-                connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-                connection.readTimeout = READ_TIMEOUT_MILLIS
+                connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MILLIS
+                connection.readTimeout = HTTP_READ_TIMEOUT_MILLIS
                 connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
 
                 if (connection is HttpURLConnection) {
@@ -707,41 +546,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
                 }
             } catch (exception: IOException) {
                 throw GradleException("Could not download Embed Code from $source.", exception)
-            } finally {
-                if (connection is HttpURLConnection) {
-                    connection.disconnect()
-                }
-            }
-        }
-
-        /**
-         * Reads UTF-8 text from [source], reporting HTTP failures clearly.
-         */
-        fun readText(source: URI, githubToken: String? = null): String {
-            var connection: URLConnection? = null
-            try {
-                connection = source.toURL().openConnection()
-                connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
-                connection.readTimeout = READ_TIMEOUT_MILLIS
-                connection.setRequestProperty("User-Agent", "embed-code-gradle-plugin")
-                connection.setRequestProperty("Accept", "application/vnd.github+json")
-                if (githubToken != null) {
-                    connection.setRequestProperty("Authorization", "Bearer $githubToken")
-                }
-                if (connection is HttpURLConnection) {
-                    connection.instanceFollowRedirects = false
-                    val status = connection.responseCode
-                    if (status < 200 || status > 299) {
-                        throw GradleException(
-                            "Could not read checksum metadata: HTTP $status from $source.",
-                        )
-                    }
-                }
-                return connection.getInputStream()
-                    .bufferedReader(StandardCharsets.UTF_8)
-                    .use { reader -> reader.readText() }
-            } catch (exception: IOException) {
-                throw GradleException("Could not read checksum metadata from $source.", exception)
             } finally {
                 if (connection is HttpURLConnection) {
                     connection.disconnect()

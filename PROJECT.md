@@ -38,6 +38,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `config/detekt/`: project-specific Detekt rules and the baseline for existing findings.
 - `scripts/check_agent_config.py` and `scripts/tests/`: deterministic validation and tests.
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
+- `.github/workflows/coverage.yml`: JaCoCo report generation and Codecov upload, using the patch
+  target defined in `codecov.yml`.
 - `.claude/commands/`: thin Claude slash-command entry points for deliberate workflows.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
@@ -87,6 +89,10 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
+- Use `./gradlew --no-configuration-cache :gradle-plugin:jacocoTestReport` to combine unit and
+  TestKit coverage into Codecov XML. The coverage-only TestKit task instruments forked builds and
+  does not support the configuration cache; the ordinary functional suite still verifies
+  configuration-cache reuse.
 - Use `./gradlew :buildSrc:check` for the build-logic tests and Detekt analysis. `buildSrc` is a
   separate build, so the root `check` task does not reach them; CI runs the task explicitly.
 - Use `./gradlew generateDependencyReports` after changing dependencies or the plugin version.

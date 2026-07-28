@@ -1,4 +1,5 @@
 [![Build on Ubuntu and Windows][build-badge]][gh-actions]
+[![Codecov][coverage-badge]][codecov]
 [![license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 
 # Embed Code Gradle plugin
@@ -178,5 +179,7 @@ consuming project's `settings.gradle.kts`. Adding it only to the regular
 The plugin is available under the [Apache License 2.0](LICENSE).
 
 [build-badge]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions/workflows/check.yml/badge.svg
+[codecov]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin
+[coverage-badge]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin/graph/badge.svg
 [embed-code]: https://github.com/SpineEventEngine/embed-code-go
 [gh-actions]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions

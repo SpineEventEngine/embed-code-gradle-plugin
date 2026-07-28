@@ -111,9 +111,9 @@ internal class EmbedCodePluginSpec {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `reuse the configuration cache`() {
-        runner(":checkEmbedding").build()
+        runner(":checkEmbedding", collectCoverage = false).build()
 
-        val result = runner(":checkEmbedding").build()
+        val result = runner(":checkEmbedding", collectCoverage = false).build()
 
         result.output shouldContain "Reusing configuration cache."
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
@@ -148,6 +148,53 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(installedExecutable(releaseTag)) shouldBe "Linux executable"
+    }
+
+    @Test
+    fun `install a Linux ZIP release with a nested executable`() {
+        val releaseTag = "v1.2.5-nested-executable"
+        val asset = releaseDirectory.resolve(
+            "download/$releaseTag/embed-code-linux.zip",
+        )
+        Files.createDirectories(asset.parent)
+        ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
+            zip.putNextEntry(ZipEntry("bin/embed-code-linux"))
+            zip.write("Nested Linux executable".toByteArray())
+            zip.closeEntry()
+        }
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(installedExecutable(releaseTag)) shouldBe "Nested Linux executable"
+    }
+
+    @Test
+    fun `reject a Linux ZIP release without the expected executable`() {
+        val releaseTag = "v1.2.5-missing-executable"
+        val asset = releaseDirectory.resolve(
+            "download/$releaseTag/embed-code-linux.zip",
+        )
+        Files.createDirectories(asset.parent)
+        ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
+            zip.putNextEntry(ZipEntry("README.md"))
+            zip.write("No executable in this archive".toByteArray())
+            zip.closeEntry()
+        }
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").buildAndFail()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
+        result.output shouldContain "does not contain `embed-code-linux`"
+        Files.exists(installedExecutable(releaseTag)) shouldBe false
+        val installation = installationDirectory(releaseTag)
+        listOf("asset.sha256", "executable.sha256", "source.sha256").forEach { marker ->
+            Files.exists(installation.resolve(marker)) shouldBe false
+        }
     }
 
     @Test
@@ -347,6 +394,48 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.isExecutable(executable) shouldBe true
+    }
+
+    @Test
+    fun `restore missing asset checksum metadata from the verified cached asset`() {
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+            val assetChecksum = installationDirectory().resolve("asset.sha256")
+            Files.delete(assetChecksum)
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            downloads.get() shouldBe 1
+            Files.readString(assetChecksum).trim() shouldBe releaseAssetSha256()
+            result.output shouldContain "Reusing verified Embed Code"
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `replace malformed executable checksum metadata from the verified cached asset`() {
+        val downloads = AtomicInteger()
+        val server = startReleaseServer(downloads)
+        try {
+            writeBuildFile(downloadBaseUrl = server.releaseBaseUrl)
+            runner(":installEmbedCode").build()
+            val executableChecksum = installationDirectory().resolve("executable.sha256")
+            Files.writeString(executableChecksum, "not-a-sha256")
+
+            val result = runner(":installEmbedCode").build()
+
+            result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+            downloads.get() shouldBe 1
+            Files.readString(executableChecksum).trim() shouldBe sha256(installedExecutable())
+            result.output shouldContain "Reusing verified Embed Code"
+        } finally {
+            server.stop(0)
+        }
     }
 
     @Test
@@ -684,6 +773,39 @@ internal class EmbedCodePluginSpec {
 
         result.output shouldContain "must remain inside"
         Files.exists(projectDirectory.resolve("escaped/release-asset")) shouldBe false
+    }
+
+    @Test
+    fun `reject a regular file in the installation path`() {
+        val installationRoot = projectDirectory.resolve("build/embed-code")
+        val blockingFile = installationRoot.resolve("blocked")
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.InstallEmbedCodeTask>("installEmbedCode") {
+                cachedAssetFile.set(
+                    layout.buildDirectory.file("embed-code/blocked/release-asset")
+                )
+                doFirst {
+                    val blockingFile = cachedAssetFile.get().asFile.parentFile
+                    check(blockingFile.deleteRecursively())
+                    blockingFile.writeText("unchanged")
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(
+            ":installEmbedCode",
+            useConfigurationCache = false,
+        ).buildAndFail()
+
+        result.output shouldContain "Embed Code installation path component"
+        result.output shouldContain "must be a directory."
+        Files.readString(blockingFile) shouldBe "unchanged"
+        Files.exists(installedExecutable()) shouldBe false
     }
 
     @Test
@@ -1048,12 +1170,29 @@ internal class EmbedCodePluginSpec {
 
     /**
      * Creates a runner using the plugin-under-test classpath.
+     *
+     * @param arguments Gradle tasks and options passed to the consuming build.
+     * @param collectCoverage whether to attach the JaCoCo agent to the consuming build.
+     * @param useConfigurationCache whether to enable Gradle's configuration cache.
      */
     private fun runner(
         vararg arguments: String,
+        collectCoverage: Boolean = testKitCoverageJvmArgument != null,
+        useConfigurationCache: Boolean = !collectCoverage,
     ): GradleRunner {
+        require(!collectCoverage || !useConfigurationCache) {
+            "TestKit coverage collection is incompatible with the configuration cache."
+        }
         val gradleArguments = arguments.toMutableList()
-        gradleArguments.add("--configuration-cache")
+        if (collectCoverage) {
+            gradleArguments.add(
+                "-Dorg.gradle.jvmargs=$DEFAULT_GRADLE_DAEMON_JVM_ARGUMENTS " +
+                    requireNotNull(testKitCoverageJvmArgument),
+            )
+        }
+        if (useConfigurationCache) {
+            gradleArguments.add("--configuration-cache")
+        }
         gradleArguments.add("--stacktrace")
         return GradleRunner.create()
             .withProjectDir(projectDirectory.toFile())
@@ -1065,7 +1204,7 @@ internal class EmbedCodePluginSpec {
      * Runs check mode with [gradleVersion].
      */
     private fun runCheckModeWithGradle(gradleVersion: String) {
-        val result = runner(":checkEmbedding")
+        val result = runner(":checkEmbedding", collectCoverage = false)
             .withGradleVersion(gradleVersion)
             .build()
 
@@ -1165,7 +1304,10 @@ internal class EmbedCodePluginSpec {
             ""
         }
         val secondSource = if (includeSecondSource) {
-            "namedSource(\"$secondSourceName\", layout.projectDirectory.dir(\"browser\"))"
+            "namedSource(" +
+                "\"$secondSourceName\", " +
+                "providers.provider { layout.projectDirectory.dir(\"browser\") }" +
+                ")"
         } else {
             ""
         }
@@ -1283,7 +1425,15 @@ internal class EmbedCodePluginSpec {
     private val HttpServer.releaseBaseUrl: String
         get() = "http://127.0.0.1:${address.port}/releases"
 
+    private val testKitCoverageJvmArgument: String?
+        get() = System.getProperty(TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY)
+
     private companion object {
+        const val TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY =
+            "io.spine.embedcode.gradle.testkit.coverage.jvm-argument"
+        // `org.gradle.jvmargs` replaces Gradle's defaults, so retain them before the JaCoCo agent.
+        const val DEFAULT_GRADLE_DAEMON_JVM_ARGUMENTS =
+            "-Xmx512m -XX:MaxMetaspaceSize=384m"
         val TEST_RELEASE_TAG = DEFAULT_EMBED_CODE_VERSION
         val TEST_RELEASE_VERSION = TEST_RELEASE_TAG.removePrefix("v")
     }
