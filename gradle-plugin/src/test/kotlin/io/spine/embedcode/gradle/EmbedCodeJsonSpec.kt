@@ -40,6 +40,7 @@ internal class EmbedCodeJsonSpec {
             "C:\\docs\nline",
             listOf("**/\"quoted\".md", "line\nbreak"),
             listOf("drafts\\**"),
+            // Kotlin has no `\f` escape, so form feed uses its Unicode code point.
             "---\b\u000C\r\t\u0001---",
             info = true,
             stacktrace = false,

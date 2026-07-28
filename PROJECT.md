@@ -89,9 +89,10 @@ version numbers into agent guidance where a durable source path is sufficient.
 - Keep tests offline with deterministic fixtures, temporary directories, and loopback HTTP servers.
 - Use `./gradlew test` for unit tests, `./gradlew functionalTest` for TestKit tests, and
   `./gradlew check` for both plus plugin validation.
-- Use `./gradlew :gradle-plugin:jacocoTestReport` to combine unit and TestKit coverage into
-  Codecov XML. The coverage-only TestKit task instruments forked builds and does not support the
-  configuration cache; the ordinary functional suite still verifies configuration-cache reuse.
+- Use `./gradlew --no-configuration-cache :gradle-plugin:jacocoTestReport` to combine unit and
+  TestKit coverage into Codecov XML. The coverage-only TestKit task instruments forked builds and
+  does not support the configuration cache; the ordinary functional suite still verifies
+  configuration-cache reuse.
 - Use `./gradlew :buildSrc:check` for the build-logic tests and Detekt analysis. `buildSrc` is a
   separate build, so the root `check` task does not reach them; CI runs the task explicitly.
 - Use `./gradlew generateDependencyReports` after changing dependencies or the plugin version.

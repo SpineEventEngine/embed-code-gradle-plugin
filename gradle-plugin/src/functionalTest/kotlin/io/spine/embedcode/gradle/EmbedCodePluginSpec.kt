@@ -32,6 +32,7 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -137,7 +138,7 @@ internal class EmbedCodePluginSpec {
         )
         Files.createDirectories(asset.parent)
         ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
-            zip.putNextEntry(ZipEntry("bin/embed-code-linux"))
+            zip.putNextEntry(ZipEntry("embed-code-linux"))
             zip.write("Linux executable".toByteArray())
             zip.closeEntry()
         }
@@ -148,6 +149,27 @@ internal class EmbedCodePluginSpec {
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
         Files.readString(installedExecutable(releaseTag)) shouldBe "Linux executable"
+    }
+
+    @Test
+    fun `install a Linux ZIP release with a nested executable`() {
+        val releaseTag = "v1.2.5-nested-executable"
+        val asset = releaseDirectory.resolve(
+            "download/$releaseTag/embed-code-linux.zip",
+        )
+        Files.createDirectories(asset.parent)
+        ZipOutputStream(Files.newOutputStream(asset)).use { zip ->
+            zip.putNextEntry(ZipEntry("bin/embed-code-linux"))
+            zip.write("Nested Linux executable".toByteArray())
+            zip.closeEntry()
+        }
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
+        selectLinuxReleaseAsset()
+
+        val result = runner(":installEmbedCode").build()
+
+        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        Files.readString(installedExecutable(releaseTag)) shouldBe "Nested Linux executable"
     }
 
     @Test
@@ -1147,20 +1169,45 @@ internal class EmbedCodePluginSpec {
         result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
+    @Test
+    fun `reject coverage collection with the configuration cache`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runner(
+                "help",
+                collectCoverage = true,
+                useConfigurationCache = true,
+            )
+        }
+
+        assertEquals(
+            "TestKit coverage collection is incompatible with the configuration cache.",
+            error.message,
+        )
+    }
+
     /**
      * Creates a runner using the plugin-under-test classpath.
+     *
+     * @param arguments Gradle tasks and options passed to the consuming build.
+     * @param collectCoverage whether to attach the JaCoCo agent to the consuming build.
+     * @param useConfigurationCache whether to enable Gradle's configuration cache.
      */
     private fun runner(
         vararg arguments: String,
         collectCoverage: Boolean = testKitCoverageJvmArgument != null,
         useConfigurationCache: Boolean = !collectCoverage,
     ): GradleRunner {
+        require(!collectCoverage || !useConfigurationCache) {
+            "TestKit coverage collection is incompatible with the configuration cache."
+        }
         val gradleArguments = arguments.toMutableList()
         if (collectCoverage) {
             gradleArguments.add(
-                "-Dorg.gradle.jvmargs=${requireNotNull(testKitCoverageJvmArgument)}",
+                "-Dorg.gradle.jvmargs=$DEFAULT_GRADLE_DAEMON_JVM_ARGUMENTS " +
+                    requireNotNull(testKitCoverageJvmArgument),
             )
-        } else if (useConfigurationCache) {
+        }
+        if (useConfigurationCache) {
             gradleArguments.add("--configuration-cache")
         }
         gradleArguments.add("--stacktrace")
@@ -1401,6 +1448,8 @@ internal class EmbedCodePluginSpec {
     private companion object {
         const val TEST_KIT_COVERAGE_JVM_ARGUMENT_PROPERTY =
             "io.spine.embedcode.gradle.testkit.coverage.jvm-argument"
+        const val DEFAULT_GRADLE_DAEMON_JVM_ARGUMENTS =
+            "-Xmx512m -XX:MaxMetaspaceSize=384m"
         val TEST_RELEASE_TAG = DEFAULT_EMBED_CODE_VERSION
         val TEST_RELEASE_VERSION = TEST_RELEASE_TAG.removePrefix("v")
     }

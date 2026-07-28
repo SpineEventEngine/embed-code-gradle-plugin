@@ -26,6 +26,8 @@
 
 package io.spine.embedcode.gradle
 
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -33,7 +35,10 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.net.InetSocketAddress
 import java.net.URI
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 @DisplayName("Checksum support should")
 internal class ChecksumSpec {
@@ -124,6 +129,115 @@ internal class ChecksumSpec {
             """{"assets":[{"name":"embed-code-linux","digest":"sha256:$digest"}]}"""
 
         assertEquals(digest, parseGitHubAssetSha256(json, "embed-code-linux"))
+    }
+
+    @Test
+    fun `send GitHub headers when reading checksum metadata`() {
+        val authorization = AtomicReference<String>()
+        val accept = AtomicReference<String>()
+        val userAgent = AtomicReference<String>()
+        val server = startServer()
+        server.createContext("/metadata") { exchange ->
+            authorization.set(exchange.requestHeaders.getFirst("Authorization"))
+            accept.set(exchange.requestHeaders.getFirst("Accept"))
+            userAgent.set(exchange.requestHeaders.getFirst("User-Agent"))
+            exchange.respond(200, """{"assets":[]}""")
+        }
+        server.start()
+
+        try {
+            val result = readChecksumMetadata(server.uri("/metadata"), "secret-token")
+
+            assertEquals("""{"assets":[]}""", result)
+            assertEquals("Bearer secret-token", authorization.get())
+            assertEquals("application/vnd.github+json", accept.get())
+            assertEquals("embed-code-gradle-plugin", userAgent.get())
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `not follow checksum metadata redirects`() {
+        val redirectedRequests = AtomicInteger()
+        val server = startServer()
+        server.createContext("/metadata") { exchange ->
+            exchange.responseHeaders.add("Location", server.uri("/redirected").toString())
+            exchange.respond(302)
+        }
+        server.createContext("/redirected") { exchange ->
+            redirectedRequests.incrementAndGet()
+            exchange.respond(200, """{"assets":[]}""")
+        }
+        server.start()
+
+        try {
+            val source = server.uri("/metadata")
+
+            val error = assertThrows(GradleException::class.java) {
+                readChecksumMetadata(source, "secret-token")
+            }
+
+            assertEquals(
+                "Could not read checksum metadata: HTTP 302 from $source.",
+                error.message,
+            )
+            assertEquals(0, redirectedRequests.get())
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `reject a failed checksum metadata response`() {
+        val server = startServer()
+        server.createContext("/metadata") { exchange ->
+            exchange.respond(503)
+        }
+        server.start()
+
+        try {
+            val source = server.uri("/metadata")
+
+            val error = assertThrows(GradleException::class.java) {
+                readChecksumMetadata(source)
+            }
+
+            assertEquals(
+                "Could not read checksum metadata: HTTP 503 from $source.",
+                error.message,
+            )
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `use a trimmed token for the GitHub API host`() {
+        val source = URI.create("https://api.github.com/repos/owner/repository/releases/tags/v1")
+        var receivedToken: String? = null
+
+        val result = readGitHubReleaseMetadata(source, "  secret-token  ") { uri, token ->
+            assertEquals(source, uri)
+            receivedToken = token
+            "metadata"
+        }
+
+        assertEquals("metadata", result)
+        assertEquals("secret-token", receivedToken)
+    }
+
+    @Test
+    fun `omit a token outside the GitHub API host`() {
+        val source = URI.create("https://metadata.example.com/releases/v1")
+        var receivedToken: String? = "not-called"
+
+        readGitHubReleaseMetadata(source, "secret-token") { _, token ->
+            receivedToken = token
+            "metadata"
+        }
+
+        assertNull(receivedToken)
     }
 
     @Test
@@ -255,5 +369,18 @@ internal class ChecksumSpec {
                 "Configure `embedCode.sha256` explicitly.",
             error.message,
         )
+    }
+
+    private fun startServer(): HttpServer =
+        HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+
+    private fun HttpServer.uri(path: String): URI =
+        URI.create("http://127.0.0.1:${address.port}$path")
+
+    private fun HttpExchange.respond(status: Int, body: String = "") {
+        val content = body.toByteArray()
+        sendResponseHeaders(status, content.size.toLong())
+        responseBody.use { output -> output.write(content) }
+        close()
     }
 }
