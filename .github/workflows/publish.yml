@@ -1,0 +1,89 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradle-plugin-portal
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set Up Java 17 for Compatibility Tests
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Save Java 17 Toolchain
+        shell: bash
+        run: echo "EMBED_CODE_JAVA_17_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - name: Set Up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Check Plugin Version
+        shell: bash
+        run: ./gradlew :gradle-plugin:checkVersionIncrement --stacktrace
+
+      - name: Check Build
+        shell: bash
+        run: >-
+          ./gradlew
+          -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME"
+          :buildSrc:check check
+
+      - name: Decrypt Gradle Plugin Portal Credentials
+        shell: bash
+        env:
+          GRADLE_PORTAL_CREDENTIALS_KEY: ${{ secrets.GRADLE_PORTAL_CREDENTIALS_KEY }}
+        run: |
+          if [[ -z "$GRADLE_PORTAL_CREDENTIALS_KEY" ]]; then
+            echo "::error::The GRADLE_PORTAL_CREDENTIALS_KEY secret is unavailable." \
+              "Grant this repository access to the organization secret."
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.gradle"
+          umask 077
+          printf '%s' "$GRADLE_PORTAL_CREDENTIALS_KEY" |
+            gpg \
+              --quiet \
+              --batch \
+              --yes \
+              --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --output "$HOME/.gradle/gradle.properties" \
+              --decrypt .github/keys/gradle-plugin-portal.secret.properties.gpg
+          chmod 600 "$HOME/.gradle/gradle.properties"
+
+      - name: Validate Plugin Portal Publication
+        shell: bash
+        run: ./gradlew :gradle-plugin:publishPlugins --validate-only
+
+      - name: Publish to Gradle Plugin Portal
+        shell: bash
+        run: ./gradlew :gradle-plugin:publishPlugins
+
+      - name: Remove Decrypted Credentials
+        if: ${{ always() }}
+        shell: bash
+        run: rm -f "$HOME/.gradle/gradle.properties"

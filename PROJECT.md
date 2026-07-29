@@ -28,8 +28,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
   conventions. Its focused unit tests cover custom report logic, and its own Detekt configuration
   analyzes the build logic.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
-  test source set, Dokka API documentation, publication metadata, and Plugin Portal
-  configuration.
+  test source set, Dokka API documentation, publication metadata, Plugin Portal version guard,
+  and publication configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
   download, installation, and execution logic.
 - `gradle-plugin/src/main/templates/`: generated default-version source template.
@@ -40,6 +40,12 @@ Embed Code configuration file and do not need to install the executable or Kotli
 - `.github/workflows/check.yml`: agent configuration and Ubuntu and Windows build verification.
 - `.github/workflows/coverage.yml`: JaCoCo report generation and Codecov upload, using the patch
   target defined in `codecov.yml`.
+- `.github/workflows/increment-guard.yml`: Plugin Portal version availability verification for
+  pull requests.
+- `.github/workflows/publish.yml`: build verification, Portal validation, and publication after
+  changes reach `master`.
+- `.github/keys/`: encrypted publication credentials that the publish workflow decrypts with an
+  organization secret.
 - `.claude/commands/`: thin Claude slash-command entry points for deliberate workflows.
 - `.agents/guidelines/`: shared writing, English-language, and project-ownership rules.
 - `.agents/skills/`: repository engineering, test, writing, review, and security workflows.
@@ -104,7 +110,7 @@ version numbers into agent guidance where a durable source path is sufficient.
 
 ## Trust boundaries
 
-Treat executable acquisition and reuse as security-sensitive:
+Treat executable acquisition, reuse, and publication credentials as security-sensitive:
 
 - Authenticate release assets before extraction or execution.
 - Bind cached metadata to the release source, exact tag, platform asset, and digest.
@@ -115,6 +121,10 @@ Treat executable acquisition and reuse as security-sensitive:
 - Reject symbolic-link or junction paths that can redirect writes outside that root.
 - Keep tokens explicit and secret; exclude them from logs, task inputs, cache keys, and metadata.
 - Use unpredictable temporary files and safe replacement when installing assets.
+- Treat the committed Plugin Portal credential ciphertext as public. Keep its decryption key in
+  the organization secret, never print the key or plaintext, restrict the decrypted Gradle
+  properties file to its owner, and remove that file after every publication attempt.
+- Rotate the Plugin Portal credentials and encryption key if the decryption key is compromised.
 
 Apply `gradle-engineer` and `security-engineer` to work spanning Gradle and security boundaries.
 

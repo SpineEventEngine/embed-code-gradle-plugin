@@ -30,6 +30,7 @@ import com.github.jk1.license.render.ReportRenderer
 import com.github.jk1.license.task.ReportTask
 import io.spine.embedcode.gradle.BuildSettings
 import io.spine.embedcode.gradle.dependency.LicenseReport
+import io.spine.embedcode.gradle.publish.CheckVersionIncrement
 import io.spine.embedcode.gradle.report.DependencyMarkdownReportRenderer
 import io.spine.embedcode.gradle.report.GenerateDependencyPom
 import io.spine.embedcode.gradle.report.UpdateDependencyReports
@@ -230,25 +231,38 @@ tasks.withType<Jar>().configureEach {
     }
 }
 
+val embedCodePlugin =
+    gradlePlugin.plugins.create("embedCodeGradlePlugin") {
+        id = "io.spine.embed-code"
+        implementationClass = "io.spine.embedcode.gradle.EmbedCodePlugin"
+        displayName = "Embed Code Gradle Plugin"
+        description =
+            "Embeds code snippets from source files into documentation and verifies that " +
+                "they are up to date."
+        tags.set(listOf("documentation", "code-samples"))
+        compatibility {
+            features {
+                configurationCache = true
+            }
+        }
+    }
+
 gradlePlugin {
     testSourceSets(functionalTestSourceSet)
     website.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
     vcsUrl.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
-    plugins {
-        create("embedCode") {
-            id = "io.spine.embed-code"
-            implementationClass = "io.spine.embedcode.gradle.EmbedCodePlugin"
-            displayName = "Embed Code Gradle Plugin"
-            description =
-                "Runs Embed Code from Gradle without a separately installed executable."
-            tags.set(listOf("documentation", "code-samples"))
-            compatibility {
-                features {
-                    configurationCache = true
-                }
-            }
-        }
-    }
+}
+
+val checkVersionIncrement = tasks.register<CheckVersionIncrement>("checkVersionIncrement") {
+    description = "Checks that the plugin version is not already published."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    pluginId.set(embedCodePlugin.id)
+    pluginVersion.set(provider { project.version.toString() })
+    portalBaseUrl.set("https://plugins.gradle.org")
+}
+
+tasks.named("publishPlugins") {
+    dependsOn(checkVersionIncrement)
 }
 
 publishing {
@@ -259,7 +273,8 @@ publishing {
         pom {
             name.set("Embed Code Gradle Plugin")
             description.set(
-                "Runs Embed Code from Gradle without a separately installed executable.",
+                "Embeds code snippets from source files into documentation and verifies that " +
+                    "they are up to date.",
             )
             url.set("https://github.com/SpineEventEngine/embed-code-gradle-plugin")
             licenses {
