@@ -21,6 +21,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
+      - name: Set Up Java 17 for Compatibility Tests
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Save Java 17 Toolchain
+        shell: bash
+        run: echo "EMBED_CODE_JAVA_17_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
       - name: Set Up Java 25
         uses: actions/setup-java@v5
         with:
@@ -32,11 +42,14 @@ jobs:
 
       - name: Check Plugin Version
         shell: bash
-        run: ./gradlew checkVersionIncrement --stacktrace
+        run: ./gradlew :gradle-plugin:checkVersionIncrement --stacktrace
 
       - name: Check Build
         shell: bash
-        run: ./gradlew :buildSrc:check check
+        run: >-
+          ./gradlew
+          -Dorg.gradle.java.installations.paths="$EMBED_CODE_JAVA_17_HOME"
+          :buildSrc:check check
 
       - name: Decrypt Gradle Plugin Portal Credentials
         shell: bash
@@ -50,6 +63,7 @@ jobs:
           fi
 
           mkdir -p "$HOME/.gradle"
+          umask 077
           printf '%s' "$GRADLE_PORTAL_CREDENTIALS_KEY" |
             gpg \
               --quiet \

@@ -30,4 +30,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Check Plugin Version
-        run: ./gradlew checkVersionIncrement --stacktrace
+        run: ./gradlew :gradle-plugin:checkVersionIncrement --stacktrace

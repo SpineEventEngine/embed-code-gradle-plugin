@@ -14,7 +14,7 @@ Embed Code configuration file and do not need to install the executable or Kotli
 
 ## Project map
 
-- `build.gradle.kts`: root group and version wiring, plus the Plugin Portal version guard.
+- `build.gradle.kts`: root group and version wiring.
 - `pom.xml`: the generated inventory of first-level dependencies from every plugin-module
   configuration. It is not a Maven build descriptor.
 - `dependencies.md`: the generated license inventory for the plugin module's production, test,
@@ -28,8 +28,8 @@ Embed Code configuration file and do not need to install the executable or Kotli
   conventions. Its focused unit tests cover custom report logic, and its own Detekt configuration
   analyzes the build logic.
 - `gradle-plugin/build.gradle.kts`: plugin declaration, generated version source, functional
-  test source set, Dokka API documentation, publication metadata, and Plugin Portal
-  configuration.
+  test source set, Dokka API documentation, publication metadata, Plugin Portal version guard,
+  and publication configuration.
 - `gradle-plugin/src/main/kotlin/`: extension, plugin, task, platform, version, JSON, checksum,
   download, installation, and execution logic.
 - `gradle-plugin/src/main/templates/`: generated default-version source template.
