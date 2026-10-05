@@ -55,6 +55,8 @@ Combine skills only when their scopes overlap:
 - Apply the [writer skill](.agents/skills/writer/SKILL.md), the
   [writing style](.agents/guidelines/writing-style.md), and the
   [English style](.agents/guidelines/english-style.md) to new or revised user-facing text.
+- Follow the [pull-request writing rules](.agents/skills/writer/SKILL.md#write-pull-requests)
+  for pull-request titles and descriptions.
 - Apply the [proofread skill](.agents/skills/proofread/SKILL.md) when checking existing
   project-owned comments and documentation for English-language errors.
 - Follow the
