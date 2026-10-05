@@ -88,7 +88,7 @@ internal class EmbedCodePluginSpec {
         arguments shouldContain "-docs-path=${projectDirectory.resolve("docs").toRealPath()}"
         arguments shouldContain "-doc-includes=**/*.md,**/*.html"
         arguments shouldContain "-doc-excludes=drafts/**,generated/**"
-        arguments shouldContain "-separator=---"
+        arguments shouldContain "-joined-fragment-separator=---"
         arguments shouldContain "-info=true"
         arguments shouldContain "-stacktrace=true"
     }
@@ -1051,6 +1051,7 @@ internal class EmbedCodePluginSpec {
         configuration shouldContain "\"name\": \"jxbrowser\""
         configuration shouldContain "\"path\": \"$browserPath\""
         configuration shouldContain "\"docs-path\": \"${projectDirectory.toRealPath()}\""
+        configuration shouldContain "\"joined-fragment-separator\": \"---\""
     }
 
     @Test
@@ -1245,7 +1246,7 @@ internal class EmbedCodePluginSpec {
                 docsPath.set(layout.projectDirectory.dir("docs"))
                 docIncludes.set(listOf("**/*.md", "**/*.html"))
                 docExcludes.set(listOf("drafts/**", "generated/**"))
-                separator.set("---")
+                joinedFragmentSeparator.set("---")
                 info.set(true)
                 stacktrace.set(true)
             }
@@ -1325,6 +1326,7 @@ internal class EmbedCodePluginSpec {
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
                 docsPath.set(layout.projectDirectory)
+                joinedFragmentSeparator.set("---")
             }
             """.trimIndent(),
         )

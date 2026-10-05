@@ -119,7 +119,7 @@ public abstract class EmbedCodeExtension {
     public abstract val docExcludes: ListProperty<String>
 
     /** Text inserted between joined fragment parts. */
-    public abstract val separator: Property<String>
+    public abstract val joinedFragmentSeparator: Property<String>
 
     /** Whether Embed Code should print informational log messages. */
     public abstract val info: Property<Boolean>

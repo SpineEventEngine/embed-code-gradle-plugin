@@ -64,7 +64,7 @@ embedCode {
     //
     // This section is optional. The values below are the defaults.
     //
-    separator.set("...")
+    joinedFragmentSeparator.set("...")
     info.set(false)
     stacktrace.set(false)
 }
