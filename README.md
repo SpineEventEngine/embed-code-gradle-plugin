@@ -1,5 +1,6 @@
 [![Build on Ubuntu and Windows][build-badge]][gh-actions]
 [![Codecov][coverage-badge]][codecov]
+[![Gradle Plugin Portal][plugin-portal-badge]][plugin-portal]
 [![license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 
 # Embed Code Gradle plugin
@@ -26,7 +27,7 @@ The plugin is written in Kotlin, but uses the Kotlin runtime supplied by Gradle.
 ## How to use
 
 This section describes how to use the plugin. For information about the Embed
-Code application itself, see its [documentation][embed-code].
+Code application itself, see its [documentation][embed-code-docs].
 
 ### Configuration
 
@@ -81,11 +82,13 @@ embedCode {
         "database",
         layout.projectDirectory.dir("database"),
     )
-    docsPath.set(layout.projectDirectory)
+    docsPath.set(layout.projectDirectory.dir("docs"))
 }
 ```
 
 `codePath` and `namedSource(...)` are mutually exclusive.
+
+For more option details, see [Embed Code's CLI options][embed-code-cli-options].
 
 ### Execution
 
@@ -182,4 +185,8 @@ The plugin is available under the [Apache License 2.0](LICENSE).
 [codecov]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin
 [coverage-badge]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin/graph/badge.svg
 [embed-code]: https://github.com/SpineEventEngine/embed-code-go
+[embed-code-cli-options]: https://github.com/SpineEventEngine/embed-code-go/blob/master/showcase/configuration/README.md#command-line-arguments
+[embed-code-docs]: https://github.com/SpineEventEngine/embed-code-go#documentation
 [gh-actions]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions
+[plugin-portal]: https://plugins.gradle.org/plugin/io.spine.embed-code
+[plugin-portal-badge]: https://img.shields.io/gradle-plugin-portal/v/io.spine.embed-code?label=Gradle%20Plugin%20Portal
