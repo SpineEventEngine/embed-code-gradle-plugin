@@ -95,6 +95,74 @@ internal class EmbedCodePluginSpec {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `use default command-line options when the options block is omitted`() {
+        writeBuildFile(optionsConfiguration = "")
+
+        runner(":checkEmbedding").build()
+
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=..."
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `accept command-line options configured through the flat properties`() {
+        writeBuildFile(
+            optionsConfiguration = """
+                joinedFragmentSeparator.set("legacy")
+                info.set(true)
+                stacktrace.set(true)
+            """.trimIndent(),
+        )
+
+        runner(":checkEmbedding").build()
+
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=legacy"
+        arguments shouldContain "-info=true"
+        arguments shouldContain "-stacktrace=true"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `resolve option providers configured after execution tasks are realized`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("checkEmbedding").get()
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("embedCode").get()
+            embedCode {
+                options {
+                    joinedFragmentSeparator.set(providers.gradleProperty("separator"))
+                    info.set(providers.gradleProperty("logging").map { it.toBoolean() })
+                    stacktrace.set(providers.gradleProperty("traces").map { it.toBoolean() })
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(
+            ":checkEmbedding",
+            ":embedCode",
+            "-Pseparator=lazy",
+            "-Plogging=false",
+            "-Ptraces=false",
+        ).build()
+
+        result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=lazy"
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `log main execution points at info level`() {
         val result = runner(":checkEmbedding", "--info").build()
 
@@ -1052,6 +1120,8 @@ internal class EmbedCodePluginSpec {
         configuration shouldContain "\"path\": \"$browserPath\""
         configuration shouldContain "\"docs-path\": \"${projectDirectory.toRealPath()}\""
         configuration shouldContain "\"joined-fragment-separator\": \"---\""
+        configuration shouldContain "\"info\": true"
+        configuration shouldContain "\"stacktrace\": true"
     }
 
     @Test
@@ -1222,6 +1292,13 @@ internal class EmbedCodePluginSpec {
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
         sha256: String? = null,
         configureSha256: Boolean = true,
+        optionsConfiguration: String = """
+            options {
+                joinedFragmentSeparator.set("---")
+                info.set(true)
+                stacktrace.set(true)
+            }
+        """.trimIndent(),
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
         val checksumConfiguration = if (configureSha256) {
@@ -1246,9 +1323,7 @@ internal class EmbedCodePluginSpec {
                 docsPath.set(layout.projectDirectory.dir("docs"))
                 docIncludes.set(listOf("**/*.md", "**/*.html"))
                 docExcludes.set(listOf("drafts/**", "generated/**"))
-                joinedFragmentSeparator.set("---")
-                info.set(true)
-                stacktrace.set(true)
+                $optionsConfiguration
             }
             """.trimIndent(),
         )
@@ -1326,7 +1401,11 @@ internal class EmbedCodePluginSpec {
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
                 docsPath.set(layout.projectDirectory)
-                joinedFragmentSeparator.set("---")
+                options {
+                    joinedFragmentSeparator.set("---")
+                    info.set(true)
+                    stacktrace.set(true)
+                }
             }
             """.trimIndent(),
         )

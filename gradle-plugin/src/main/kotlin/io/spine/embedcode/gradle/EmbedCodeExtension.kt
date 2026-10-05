@@ -26,14 +26,17 @@
 
 package io.spine.embedcode.gradle
 
+import org.gradle.api.Action
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import javax.inject.Inject
 
 /**
  * Configures Embed Code for a Gradle project.
@@ -41,7 +44,7 @@ import org.gradle.api.provider.Provider
  * The extension maps directly to Embed Code command-line options and does not
  * create or require a YAML configuration file.
  */
-public abstract class EmbedCodeExtension {
+public abstract class EmbedCodeExtension @Inject constructor(objects: ObjectFactory) {
 
     private val configuredSourceNames = mutableSetOf<String>()
 
@@ -118,14 +121,30 @@ public abstract class EmbedCodeExtension {
     /** Glob patterns selecting documentation files to skip. */
     public abstract val docExcludes: ListProperty<String>
 
-    /** Text inserted between joined fragment parts. */
-    public abstract val joinedFragmentSeparator: Property<String>
+    /**
+     * Optional command-line settings shared by check and embed modes.
+     *
+     * The defaults are `...` for the joined fragment separator and `false` for logging
+     * and stack traces.
+     */
+    public val options: EmbedCodeOptions = objects.newInstance(EmbedCodeOptions::class.java)
+
+    /** Configures the command-line options without resolving their providers. */
+    public fun options(action: Action<in EmbedCodeOptions>) {
+        action.execute(options)
+    }
+
+    /** Text inserted between joined fragment parts; also available through [options]. */
+    public val joinedFragmentSeparator: Property<String>
+        get() = options.joinedFragmentSeparator
 
     /** Whether Embed Code should print informational log messages. */
-    public abstract val info: Property<Boolean>
+    public val info: Property<Boolean>
+        get() = options.info
 
     /** Whether Embed Code should print stack traces after panics. */
-    public abstract val stacktrace: Property<Boolean>
+    public val stacktrace: Property<Boolean>
+        get() = options.stacktrace
 
     /**
      * The base URL of the Embed Code releases.

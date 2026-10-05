@@ -62,11 +62,13 @@ embedCode {
 
     // Configure other Embed Code command-line options.
     //
-    // This section is optional. The values below are the defaults.
+    // This block is optional. The values below are the defaults.
     //
-    joinedFragmentSeparator.set("...")
-    info.set(false)
-    stacktrace.set(false)
+    options {
+        joinedFragmentSeparator.set("...")
+        info.set(false)
+        stacktrace.set(false)
+    }
 }
 ```
 
