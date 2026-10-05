@@ -70,6 +70,8 @@ embedCode {
 }
 ```
 
+For details on each option, see the Embed Code [command-line arguments][embed-code-cli-options].
+
 Use named source roots when documentation embeds code from multiple modules:
 
 ```kotlin
@@ -87,8 +89,6 @@ embedCode {
 ```
 
 `codePath` and `namedSource(...)` are mutually exclusive.
-
-For more option details, see [Embed Code's CLI options][embed-code-cli-options].
 
 ### Execution
 

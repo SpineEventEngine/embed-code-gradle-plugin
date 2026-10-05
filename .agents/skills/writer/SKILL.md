@@ -52,10 +52,8 @@ without opening the code. Preserve essential behavior, constraints, risks, and r
 
 - Omit a trailing period from the title.
 - Always include `## Summary` followed by `## Changes`, even for a small change.
-- In `Summary`, use one short paragraph stating what the work achieves and how it benefits
-  the project.
-- In `Changes`, use short outcome bullets without implementation details or repetition
-  of the summary.
+- In `Summary`, state in one short paragraph what the work achieves and how it benefits the project.
+- In `Changes`, use short outcome bullets; avoid implementation details and repeating the summary.
 - Add `## Additional changes` after `Changes` only for incidental work unrelated to the main
   goal. Use short outcome bullets.
 - Add other sections only for a distinct constraint or reviewer action. Omit
