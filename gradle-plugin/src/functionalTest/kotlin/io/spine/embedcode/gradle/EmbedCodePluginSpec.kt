@@ -88,9 +88,58 @@ internal class EmbedCodePluginSpec {
         arguments shouldContain "-docs-path=${projectDirectory.resolve("docs").toRealPath()}"
         arguments shouldContain "-doc-includes=**/*.md,**/*.html"
         arguments shouldContain "-doc-excludes=drafts/**,generated/**"
-        arguments shouldContain "-separator=---"
+        arguments shouldContain "-joined-fragment-separator=---"
         arguments shouldContain "-info=true"
         arguments shouldContain "-stacktrace=true"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `use default command-line options when the options block is omitted`() {
+        writeBuildFile(optionsConfiguration = "")
+
+        runner(":checkEmbedding").build()
+
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=..."
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `resolve option providers configured after execution tasks are realized`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("checkEmbedding").get()
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("embedCode").get()
+            embedCode {
+                options {
+                    joinedFragmentSeparator.set(providers.gradleProperty("separator"))
+                    info.set(providers.gradleProperty("logging").map { it.toBoolean() })
+                    stacktrace.set(providers.gradleProperty("traces").map { it.toBoolean() })
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(
+            ":checkEmbedding",
+            ":embedCode",
+            "-Pseparator=lazy",
+            "-Plogging=false",
+            "-Ptraces=false",
+        ).build()
+
+        result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=lazy"
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
     }
 
     @Test
@@ -199,17 +248,19 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install a bare Linux asset from a release published before ZIP packaging`() {
+        val releaseTag = "v1.2.4"
         val asset = releaseDirectory.resolve(
-            "download/$TEST_RELEASE_TAG/embed-code-linux",
+            "download/$releaseTag/embed-code-linux",
         )
+        Files.createDirectories(asset.parent)
         Files.writeString(asset, "Legacy Linux executable")
-        writeBuildFile(sha256 = sha256(asset))
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
         selectLinuxReleaseAsset()
 
         val result = runner(":installEmbedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(installedExecutable()) shouldBe "Legacy Linux executable"
+        Files.readString(installedExecutable(releaseTag)) shouldBe "Legacy Linux executable"
     }
 
     @Test
@@ -1051,6 +1102,9 @@ internal class EmbedCodePluginSpec {
         configuration shouldContain "\"name\": \"jxbrowser\""
         configuration shouldContain "\"path\": \"$browserPath\""
         configuration shouldContain "\"docs-path\": \"${projectDirectory.toRealPath()}\""
+        configuration shouldContain "\"joined-fragment-separator\": \"---\""
+        configuration shouldContain "\"info\": true"
+        configuration shouldContain "\"stacktrace\": true"
     }
 
     @Test
@@ -1221,6 +1275,13 @@ internal class EmbedCodePluginSpec {
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
         sha256: String? = null,
         configureSha256: Boolean = true,
+        optionsConfiguration: String = """
+            options {
+                joinedFragmentSeparator.set("---")
+                info.set(true)
+                stacktrace.set(true)
+            }
+        """.trimIndent(),
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
         val checksumConfiguration = if (configureSha256) {
@@ -1245,9 +1306,7 @@ internal class EmbedCodePluginSpec {
                 docsPath.set(layout.projectDirectory.dir("docs"))
                 docIncludes.set(listOf("**/*.md", "**/*.html"))
                 docExcludes.set(listOf("drafts/**", "generated/**"))
-                separator.set("---")
-                info.set(true)
-                stacktrace.set(true)
+                $optionsConfiguration
             }
             """.trimIndent(),
         )
@@ -1325,6 +1384,11 @@ internal class EmbedCodePluginSpec {
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
                 docsPath.set(layout.projectDirectory)
+                options {
+                    joinedFragmentSeparator.set("---")
+                    info.set(true)
+                    stacktrace.set(true)
+                }
             }
             """.trimIndent(),
         )

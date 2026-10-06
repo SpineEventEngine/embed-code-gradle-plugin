@@ -24,8 +24,24 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** Version of the Embed Code Gradle plugin. */
-extra.set("embedCodePluginVersion", "0.1.3")
+package io.spine.embedcode.gradle
 
-/** Version of the Embed Code application used by default. */
-extra.set("embedCodeAppVersion", "1.2.5")
+import org.gradle.api.provider.Property
+
+/**
+ * Configures command-line options shared by Embed Code check and embed modes.
+ *
+ * Values remain provider-backed until task execution. Named source roots use the same
+ * options in the generated configuration.
+ */
+public abstract class EmbedCodeOptions {
+
+    /** Text inserted between joined fragment parts. Defaults to `...`. */
+    public abstract val joinedFragmentSeparator: Property<String>
+
+    /** Whether Embed Code prints informational log messages. Defaults to `false`. */
+    public abstract val info: Property<Boolean>
+
+    /** Whether Embed Code prints stack traces after panics. Defaults to `false`. */
+    public abstract val stacktrace: Property<Boolean>
+}
