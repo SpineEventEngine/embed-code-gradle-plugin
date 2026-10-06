@@ -38,8 +38,23 @@ Combine skills only when their scopes overlap:
 - Ask a question only when an unresolved decision would materially change the result.
 - Do not commit, push, tag, merge, rebase, cherry-pick, reply to review threads, or resolve
   threads unless the user's current request explicitly asks for that action.
-- Do not publish plugins, change release versions, or use credentials unless explicitly asked.
+- Do not publish plugins or use credentials unless explicitly asked. Change release versions
+  only when asked or as part of a [pull-request version bump](#version-increments).
 - Do not add telemetry, analytics, hidden network access, or automatic dependency updates.
+
+## Version increments
+
+Every push to `master` publishes the plugin, so each pull request needs a new plugin version.
+The [version guard](.github/workflows/increment-guard.yml) fails a pull request whose version
+is already on the Gradle Plugin Portal.
+
+- Increment `embedCodePluginVersion` in [`version.gradle.kts`](version.gradle.kts) once per
+  pull request. Skip it when the branch already changes that version relative to its base.
+- Increment the patch component unless the user requests a different increment.
+- Run `./gradlew generateDependencyReports` so that `pom.xml` records the new version.
+- Update the plugin version in the [`README.md`](README.md) configuration example.
+- When committing work for a pull request, put the bump in its own commit with the message
+  ``Bump version -> `<version>`.``, for example ``Bump version -> `0.1.2`.``.
 
 ## Project defaults
 
@@ -55,6 +70,8 @@ Combine skills only when their scopes overlap:
 - Apply the [writer skill](.agents/skills/writer/SKILL.md), the
   [writing style](.agents/guidelines/writing-style.md), and the
   [English style](.agents/guidelines/english-style.md) to new or revised user-facing text.
+- Follow the [pull-request writing rules](.agents/skills/writer/SKILL.md#write-pull-requests)
+  for pull-request titles and descriptions.
 - Apply the [proofread skill](.agents/skills/proofread/SKILL.md) when checking existing
   project-owned comments and documentation for English-language errors.
 - Follow the

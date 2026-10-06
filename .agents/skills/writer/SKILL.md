@@ -3,7 +3,8 @@ name: writer
 description: >-
   Use when creating, reviewing, or revising README.md, PROJECT.md, AGENTS.md,
   skill routes, Markdown, Kotlin KDoc, Gradle task descriptions, public errors,
-  or explanatory comments; write verified project documentation in the Spine style.
+  explanatory comments, or pull-request titles and descriptions; write verified
+  project documentation in the Spine style.
 ---
 
 # Documentation writer
@@ -43,6 +44,27 @@ Read the [project context](../../../PROJECT.md), the
   weakening or overstating the trust guarantees.
 - Prefer direct instructions and observable outcomes over promotional language.
 - Keep one source of truth for detailed guidance and link to it from shorter entry points.
+
+## Write pull requests
+
+Describe one concrete improvement and why it matters. Keep the title and body understandable
+without opening the code. Preserve essential behavior, constraints, risks, and reviewer actions.
+
+- Omit a trailing period from the title.
+- Always include `## Summary` followed by `## Changes`, even for a small change.
+- In `Summary`, state in one short paragraph what the work achieves and how it benefits the project.
+- In `Changes`, use short outcome bullets; avoid implementation details and repeating the summary.
+- Add `## Additional changes` after `Changes` only for incidental work unrelated to the main
+  goal. Use short outcome bullets.
+- Add other sections only for a distinct constraint or reviewer action. Omit
+  verification, testing, and build information, as well as agent attribution.
+- For stacked work, add `## Reviewer notes` naming the source branch and exact boundary commit.
+  State that earlier commits are outside this task and direct review after that boundary.
+  Verify the parent PR's status before claiming it is open or unmerged.
+- Add a closing keyword such as `Fixes #123` for every resolved issue.
+- Do not hard-wrap pull-request prose, including local drafts. Break lines only for
+  intentional Markdown structure.
+- Omit implementation inventories, conversation history, and exhaustive examples.
 
 ## Write Kotlin documentation
 

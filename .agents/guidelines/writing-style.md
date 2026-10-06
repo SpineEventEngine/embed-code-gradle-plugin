@@ -14,7 +14,11 @@ structure when it is more specific.
 ## Format prose consistently
 
 - Keep changed Markdown and KDoc prose at no more than 100 characters per source line.
-- Use sentence case for headings.
+  Pull-request descriptions, including local drafts, are exempt from this line limit. See the
+  [pull-request writing rules](../skills/writer/SKILL.md#write-pull-requests).
+- Use sentence case for documentation titles and headings: capitalize the first word,
+  proper nouns, and acronyms; keep other words lowercase. Follow the
+  [Spine documentation convention][capitalisation-in-headers].
 - Use one top-level heading and do not skip heading levels.
 - Format paths, identifiers, Gradle tasks, properties, flags, commands, and literals as code.
 - Put multiline commands, configuration, source, output, and other machine text in fenced
@@ -47,3 +51,5 @@ structure when it is more specific.
 - Do not restyle unrelated prose while making a focused change.
 - Preserve code, machine-generated text, exact command output, logs, URLs, frontmatter,
   serialized data, and license or copyright text verbatim unless the task targets it.
+
+[capitalisation-in-headers]: https://github.com/SpineEventEngine/documentation/wiki/Documentation-conventions#capitalisation-in-headers

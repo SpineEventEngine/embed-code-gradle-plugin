@@ -10,7 +10,7 @@
   -->
   <groupId>io.spine.tools</groupId>
   <artifactId>embed-code-gradle-plugin</artifactId>
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <licenses>
     <license>
       <name>The Apache License, Version 2.0</name>
