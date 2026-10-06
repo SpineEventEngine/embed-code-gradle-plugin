@@ -52,6 +52,7 @@ is already on the Gradle Plugin Portal.
   pull request. Skip it when the branch already changes that version relative to its base.
 - Increment the patch component unless the user requests a different increment.
 - Run `./gradlew generateDependencyReports` so that `pom.xml` records the new version.
+- Update the plugin version in the [`README.md`](README.md) configuration example.
 - When committing work for a pull request, put the bump in its own commit with the message
   ``Bump version -> `<version>`.``, for example ``Bump version -> `0.1.2`.``.
 

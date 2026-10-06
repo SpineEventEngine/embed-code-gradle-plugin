@@ -14,8 +14,8 @@ structure when it is more specific.
 ## Format prose consistently
 
 - Keep changed Markdown and KDoc prose at no more than 100 characters per source line.
-  Pull-request descriptions, including local drafts, follow the
-  [pull-request writing rules](../skills/writer/SKILL.md#write-pull-requests) instead.
+  Pull-request descriptions, including local drafts, are exempt from this line limit. See the
+  [pull-request writing rules](../skills/writer/SKILL.md#write-pull-requests).
 - Use sentence case for documentation titles and headings: capitalize the first word,
   proper nouns, and acronyms; keep other words lowercase. Follow the
   [Spine documentation convention][capitalisation-in-headers].
