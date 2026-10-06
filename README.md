@@ -125,9 +125,12 @@ To set the application version explicitly, use its exact release tag:
 
 ```kotlin
 embedCode {
-    version.set("v1.2.4")
+    version.set("v1.2.5")
 }
 ```
+
+The plugin requires Embed Code `v1.2.5` or newer, which supports the
+`joined-fragment-separator` option.
 
 ### GitHub authorization
 

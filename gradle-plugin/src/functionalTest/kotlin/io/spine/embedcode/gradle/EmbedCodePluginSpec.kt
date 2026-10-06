@@ -108,25 +108,6 @@ internal class EmbedCodePluginSpec {
 
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
-    fun `accept command-line options configured through the flat properties`() {
-        writeBuildFile(
-            optionsConfiguration = """
-                joinedFragmentSeparator.set("legacy")
-                info.set(true)
-                stacktrace.set(true)
-            """.trimIndent(),
-        )
-
-        runner(":checkEmbedding").build()
-
-        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
-        arguments shouldContain "-joined-fragment-separator=legacy"
-        arguments shouldContain "-info=true"
-        arguments shouldContain "-stacktrace=true"
-    }
-
-    @Test
-    @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `resolve option providers configured after execution tasks are realized`() {
         Files.writeString(
             projectDirectory.resolve("build.gradle.kts"),
@@ -267,17 +248,19 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install a bare Linux asset from a release published before ZIP packaging`() {
+        val releaseTag = "v1.2.4"
         val asset = releaseDirectory.resolve(
-            "download/$TEST_RELEASE_TAG/embed-code-linux",
+            "download/$releaseTag/embed-code-linux",
         )
+        Files.createDirectories(asset.parent)
         Files.writeString(asset, "Legacy Linux executable")
-        writeBuildFile(sha256 = sha256(asset))
+        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
         selectLinuxReleaseAsset()
 
         val result = runner(":installEmbedCode").build()
 
         result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(installedExecutable()) shouldBe "Legacy Linux executable"
+        Files.readString(installedExecutable(releaseTag)) shouldBe "Legacy Linux executable"
     }
 
     @Test

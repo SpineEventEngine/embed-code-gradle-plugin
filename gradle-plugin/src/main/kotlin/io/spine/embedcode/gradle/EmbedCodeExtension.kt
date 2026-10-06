@@ -134,18 +134,6 @@ public abstract class EmbedCodeExtension @Inject constructor(objects: ObjectFact
         action.execute(options)
     }
 
-    /** Text inserted between joined fragment parts; also available through [options]. */
-    public val joinedFragmentSeparator: Property<String>
-        get() = options.joinedFragmentSeparator
-
-    /** Whether Embed Code should print informational log messages. */
-    public val info: Property<Boolean>
-        get() = options.info
-
-    /** Whether Embed Code should print stack traces after panics. */
-    public val stacktrace: Property<Boolean>
-        get() = options.stacktrace
-
     /**
      * The base URL of the Embed Code releases.
      *
