@@ -100,9 +100,9 @@ public abstract class EmbedCodeTask : DefaultTask() {
     @get:Input
     public abstract val docExcludes: ListProperty<String>
 
-    /** The fragment separator passed to `-separator`. */
+    /** The fragment separator passed to `-joined-fragment-separator`. */
     @get:Input
-    public abstract val separator: Property<String>
+    public abstract val joinedFragmentSeparator: Property<String>
 
     /** Whether informational logging is enabled. */
     @get:Input
@@ -162,7 +162,7 @@ public abstract class EmbedCodeTask : DefaultTask() {
             if (docExcludes.get().isNotEmpty()) {
                 arguments.add("-doc-excludes=${docExcludes.get().joinToString(",")}")
             }
-            arguments.add("-separator=${separator.get()}")
+            arguments.add("-joined-fragment-separator=${joinedFragmentSeparator.get()}")
             arguments.add("-info=${info.get()}")
             arguments.add("-stacktrace=${stacktrace.get()}")
         }
@@ -205,7 +205,7 @@ public abstract class EmbedCodeTask : DefaultTask() {
             docsPath.get().asFile.absolutePath,
             docIncludes.get(),
             docExcludes.get(),
-            separator.get(),
+            joinedFragmentSeparator.get(),
             info.get(),
             stacktrace.get(),
         )
