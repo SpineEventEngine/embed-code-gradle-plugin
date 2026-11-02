@@ -129,9 +129,6 @@ embedCode {
 }
 ```
 
-The plugin requires Embed Code `v1.2.5` or newer, which supports the
-`joined-fragment-separator` option.
-
 ### GitHub authorization
 
 API requests are unauthenticated unless a token provider is configured explicitly:
