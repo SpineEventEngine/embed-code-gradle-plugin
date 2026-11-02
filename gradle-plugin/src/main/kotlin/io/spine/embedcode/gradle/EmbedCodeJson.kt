@@ -36,7 +36,7 @@ internal fun createConfigurationJson(
     docsPath: String,
     docIncludes: List<String>,
     docExcludes: List<String>,
-    separator: String,
+    joinedFragmentSeparator: String,
     info: Boolean,
     stacktrace: Boolean,
 ): String {
@@ -60,8 +60,8 @@ internal fun createConfigurationJson(
     appendJsonArray(json, docIncludes)
     json.append(",\n  \"doc-excludes\": ")
     appendJsonArray(json, docExcludes)
-    json.append(",\n  \"separator\": ")
-    appendJsonString(json, separator)
+    json.append(",\n  \"joined-fragment-separator\": ")
+    appendJsonString(json, joinedFragmentSeparator)
     json.append(",\n  \"info\": ").append(info)
     json.append(",\n  \"stacktrace\": ").append(stacktrace)
     json.append("\n}\n")

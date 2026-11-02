@@ -35,7 +35,7 @@ Add the following configuration to the project's `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.spine.embed-code") version "0.1.2" // Specify the actual version here.
+    id("io.spine.embed-code") version "0.2.0" // Specify the actual version here.
 }
 
 embedCode {
@@ -62,11 +62,13 @@ embedCode {
 
     // Configure other Embed Code command-line options.
     //
-    // This section is optional. The values below are the defaults.
+    // This block is optional. The values below are the defaults.
     //
-    separator.set("...")
-    info.set(false)
-    stacktrace.set(false)
+    options {
+        joinedFragmentSeparator.set("...")
+        info.set(false)
+        stacktrace.set(false)
+    }
 }
 ```
 
@@ -123,7 +125,7 @@ To set the application version explicitly, use its exact release tag:
 
 ```kotlin
 embedCode {
-    version.set("v1.2.4")
+    version.set("v1.2.7")
 }
 ```
 
@@ -185,6 +187,7 @@ The plugin is available under the [Apache License 2.0](LICENSE).
 [codecov]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin
 [coverage-badge]: https://codecov.io/gh/SpineEventEngine/embed-code-gradle-plugin/graph/badge.svg
 [embed-code]: https://github.com/SpineEventEngine/embed-code-go
+[embed-code-cli-options]: https://github.com/SpineEventEngine/embed-code-go/blob/master/showcase/configuration/README.md#command-line-arguments
 [embed-code-docs]: https://github.com/SpineEventEngine/embed-code-go#documentation
 [gh-actions]: https://github.com/SpineEventEngine/embed-code-gradle-plugin/actions
 [plugin-portal]: https://plugins.gradle.org/plugin/io.spine.embed-code

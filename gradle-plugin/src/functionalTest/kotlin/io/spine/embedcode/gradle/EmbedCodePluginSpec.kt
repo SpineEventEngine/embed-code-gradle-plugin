@@ -88,9 +88,58 @@ internal class EmbedCodePluginSpec {
         arguments shouldContain "-docs-path=${projectDirectory.resolve("docs").toRealPath()}"
         arguments shouldContain "-doc-includes=**/*.md,**/*.html"
         arguments shouldContain "-doc-excludes=drafts/**,generated/**"
-        arguments shouldContain "-separator=---"
+        arguments shouldContain "-joined-fragment-separator=---"
         arguments shouldContain "-info=true"
         arguments shouldContain "-stacktrace=true"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `use default command-line options when the options block is omitted`() {
+        writeBuildFile(optionsConfiguration = "")
+
+        runner(":checkEmbedding").build()
+
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=..."
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `resolve option providers configured after execution tasks are realized`() {
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("checkEmbedding").get()
+            tasks.named<io.spine.embedcode.gradle.EmbedCodeTask>("embedCode").get()
+            embedCode {
+                options {
+                    joinedFragmentSeparator.set(providers.gradleProperty("separator"))
+                    info.set(providers.gradleProperty("logging").map { it.toBoolean() })
+                    stacktrace.set(providers.gradleProperty("traces").map { it.toBoolean() })
+                }
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(
+            ":checkEmbedding",
+            ":embedCode",
+            "-Pseparator=lazy",
+            "-Plogging=false",
+            "-Ptraces=false",
+        ).build()
+
+        result.task(":checkEmbedding")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.task(":embedCode")?.outcome shouldBe TaskOutcome.SUCCESS
+        val arguments = Files.readAllLines(projectDirectory.resolve("arguments.txt"))
+        arguments shouldContain "-joined-fragment-separator=lazy"
+        arguments shouldContain "-info=false"
+        arguments shouldContain "-stacktrace=false"
     }
 
     @Test
@@ -131,7 +180,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install the Linux ZIP release asset`() {
-        val releaseTag = "v1.2.5"
+        val releaseTag = "v9.9.9"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -152,7 +201,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install a Linux ZIP release with a nested executable`() {
-        val releaseTag = "v1.2.5-nested-executable"
+        val releaseTag = "v9.9.9-nested-executable"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -173,7 +222,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reject a Linux ZIP release without the expected executable`() {
-        val releaseTag = "v1.2.5-missing-executable"
+        val releaseTag = "v9.9.9-missing-executable"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -195,21 +244,6 @@ internal class EmbedCodePluginSpec {
         listOf("asset.sha256", "executable.sha256", "source.sha256").forEach { marker ->
             Files.exists(installation.resolve(marker)) shouldBe false
         }
-    }
-
-    @Test
-    fun `install a bare Linux asset from a release published before ZIP packaging`() {
-        val asset = releaseDirectory.resolve(
-            "download/$TEST_RELEASE_TAG/embed-code-linux",
-        )
-        Files.writeString(asset, "Legacy Linux executable")
-        writeBuildFile(sha256 = sha256(asset))
-        selectLinuxReleaseAsset()
-
-        val result = runner(":installEmbedCode").build()
-
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(installedExecutable()) shouldBe "Legacy Linux executable"
     }
 
     @Test
@@ -265,7 +299,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install an overridden application release into a separate cache`() {
-        val nextVersion = "1.2.5-test"
+        val nextVersion = "9.9.9-test"
         val nextTag = "v$nextVersion"
         createFakeRelease(releaseDirectory, nextVersion, nextTag)
         val downloads = AtomicInteger()
@@ -469,7 +503,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            TEST_RELEASE_TAG,
         )
         val taskTemporaryDirectory = projectDirectory.resolve("build/tmp/installEmbedCode")
         Files.createDirectories(taskTemporaryDirectory)
@@ -588,8 +621,8 @@ internal class EmbedCodePluginSpec {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `trim an overridden Embed Code release tag`() {
-        val overrideTag = "v0.0.0-test"
-        createFakeRelease(releaseDirectory, version = "0.0.0-test", tag = overrideTag)
+        val overrideTag = "v9.9.9-test"
+        createFakeRelease(releaseDirectory, version = "9.9.9-test", tag = overrideTag)
         writeBuildFile(" $overrideTag ")
 
         val result = runner(":checkEmbedding").build()
@@ -655,6 +688,40 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode").buildAndFail()
 
         result.output shouldContain "The rolling Embed Code version `latest` is not supported."
+    }
+
+    @Test
+    fun `reject a release older than the minimum supported version`() {
+        writeBuildFile(version = "v1.2.4", configureSha256 = false)
+
+        val result = runner(":checkEmbedding").buildAndFail()
+
+        result.output shouldContain "Embed Code release `v1.2.4` is not supported"
+        result.output shouldContain
+            "Configure `embedCode.version` with `$MINIMUM_EMBED_CODE_VERSION` or newer."
+        Files.exists(projectDirectory.resolve("arguments.txt")) shouldBe false
+    }
+
+    @Test
+    fun `reject an older release when named source roots are configured`() {
+        Files.createDirectories(projectDirectory.resolve("company-site"))
+        Files.createDirectories(projectDirectory.resolve("browser"))
+        writeNamedSourcesBuildFile()
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            embedCode {
+                version.set("v1.2.4")
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":checkEmbedding").buildAndFail()
+
+        result.output shouldContain "Embed Code release `v1.2.4` is not supported"
+        Files.exists(projectDirectory.resolve("generated-config.json")) shouldBe false
     }
 
     @Test
@@ -990,7 +1057,6 @@ internal class EmbedCodePluginSpec {
             val platform = EmbedCodePlatform.detect(
                 System.getProperty("os.name"),
                 System.getProperty("os.arch"),
-                TEST_RELEASE_TAG,
             )
             val source = "$baseUrl/download/$TEST_RELEASE_TAG/${platform.assetName}"
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
@@ -1051,6 +1117,9 @@ internal class EmbedCodePluginSpec {
         configuration shouldContain "\"name\": \"jxbrowser\""
         configuration shouldContain "\"path\": \"$browserPath\""
         configuration shouldContain "\"docs-path\": \"${projectDirectory.toRealPath()}\""
+        configuration shouldContain "\"joined-fragment-separator\": \"---\""
+        configuration shouldContain "\"info\": true"
+        configuration shouldContain "\"stacktrace\": true"
     }
 
     @Test
@@ -1221,6 +1290,13 @@ internal class EmbedCodePluginSpec {
         downloadBaseUrl: String = releaseDirectory.toUri().toString().trimEnd('/'),
         sha256: String? = null,
         configureSha256: Boolean = true,
+        optionsConfiguration: String = """
+            options {
+                joinedFragmentSeparator.set("---")
+                info.set(true)
+                stacktrace.set(true)
+            }
+        """.trimIndent(),
     ) {
         val versionConfiguration = version?.let { "version.set(\"$it\")" }.orEmpty()
         val checksumConfiguration = if (configureSha256) {
@@ -1245,9 +1321,7 @@ internal class EmbedCodePluginSpec {
                 docsPath.set(layout.projectDirectory.dir("docs"))
                 docIncludes.set(listOf("**/*.md", "**/*.html"))
                 docExcludes.set(listOf("drafts/**", "generated/**"))
-                separator.set("---")
-                info.set(true)
-                stacktrace.set(true)
+                $optionsConfiguration
             }
             """.trimIndent(),
         )
@@ -1325,6 +1399,11 @@ internal class EmbedCodePluginSpec {
                 namedSource("$firstSourceName", layout.projectDirectory.dir("company-site"))
                 $secondSource
                 docsPath.set(layout.projectDirectory)
+                options {
+                    joinedFragmentSeparator.set("---")
+                    info.set(true)
+                    stacktrace.set(true)
+                }
             }
             """.trimIndent(),
         )
@@ -1341,7 +1420,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            tag,
         )
         val versionDirectory = root.resolve("download/$tag")
         Files.createDirectories(versionDirectory)
@@ -1389,7 +1467,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            tag.trim(),
         )
         val asset = root.resolve("download/${tag.trim()}/${platform.assetName}")
         return sha256(asset)

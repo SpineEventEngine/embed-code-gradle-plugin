@@ -55,7 +55,7 @@ internal class EmbedCodeJsonSpec {
               "docs-path": "C:\\docs\nline",
               "doc-includes": ["**/\"quoted\".md", "line\nbreak"],
               "doc-excludes": ["drafts\\**"],
-              "separator": "---\b\f\r\t\u0001---",
+              "joined-fragment-separator": "---\b\f\r\t\u0001---",
               "info": true,
               "stacktrace": false
             }

@@ -140,7 +140,6 @@ public abstract class InstallEmbedCodeTask : DefaultTask() {
         val platform = EmbedCodePlatform.detect(
             hostOperatingSystem,
             hostArchitecture,
-            releaseTag,
         )
         val asset = platform.assetName
         val baseUrl = trimTrailingSlashes(downloadBaseUrl.get())

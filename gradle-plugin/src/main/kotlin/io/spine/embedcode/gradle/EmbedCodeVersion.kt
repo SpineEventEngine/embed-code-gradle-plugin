@@ -31,9 +31,32 @@ import org.gradle.api.InvalidUserDataException
 private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
 
 /**
+ * A release tag numbered `major.minor.patch`, optionally followed by a suffix.
+ *
+ * Each number is limited to nine digits, so it always fits an `Int`.
+ */
+private val numberedReleaseTag = Regex("""[vV]?(\d{1,9})\.(\d{1,9})\.(\d{1,9})(?:[._+~-].*)?""")
+
+/**
+ * The oldest supported Embed Code release.
+ *
+ * Older releases do not accept the `joined-fragment-separator` option that the plugin
+ * always configures. The `EmbedCodeExtension.version` KDoc repeats this value for consumers,
+ * so update it together with this constant.
+ */
+internal const val MINIMUM_EMBED_CODE_VERSION: String = "v1.2.5"
+
+/**
+ * The `major.minor.patch` numbers of [MINIMUM_EMBED_CODE_VERSION].
+ */
+private val minimumReleaseNumbers =
+    MINIMUM_EMBED_CODE_VERSION.removePrefix("v").split('.').map(String::toInt)
+
+/**
  * Trims and validates a user-configured Embed Code release tag.
  *
  * The tag becomes a release URL segment, so only URL-safe characters are accepted.
+ * Releases numbered below [MINIMUM_EMBED_CODE_VERSION] are rejected.
  */
 internal fun validateVersion(value: String): String {
     val version = value.trim()
@@ -55,8 +78,33 @@ internal fun validateVersion(value: String): String {
                 "and start with a letter or digit.",
         )
     }
+    if (isOlderThanMinimumVersion(version)) {
+        throw InvalidUserDataException(
+            "Embed Code release `$version` is not supported. " +
+                "Configure `embedCode.version` with `$MINIMUM_EMBED_CODE_VERSION` or newer.",
+        )
+    }
     return version
 }
+
+/**
+ * Tells whether [tag] is numbered below [MINIMUM_EMBED_CODE_VERSION].
+ *
+ * A suffix does not affect the comparison. A tag without a `major.minor.patch` number
+ * cannot be ordered against the minimum, so it is not considered older.
+ */
+private fun isOlderThanMinimumVersion(tag: String): Boolean {
+    val numbers = releaseNumbers(tag) ?: return false
+    val firstDifference = numbers.zip(minimumReleaseNumbers)
+        .firstOrNull { (part, floor) -> part != floor }
+    return firstDifference != null && firstDifference.first < firstDifference.second
+}
+
+/**
+ * Returns the `major.minor.patch` numbers of [tag], or `null` if it is not numbered that way.
+ */
+private fun releaseNumbers(tag: String): List<Int>? =
+    numberedReleaseTag.matchEntire(tag)?.groupValues?.drop(1)?.map(String::toInt)
 
 /**
  * Returns a case-sensitive, filesystem-portable cache key for [releaseTag].
