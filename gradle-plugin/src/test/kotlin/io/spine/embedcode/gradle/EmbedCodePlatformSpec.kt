@@ -39,7 +39,7 @@ internal class EmbedCodePlatformSpec {
     fun `select Apple silicon asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-macos-arm64.zip", "embed-code-macos-arm64"),
-            EmbedCodePlatform.detect("Mac OS X", "aarch64", "v1.2.4"),
+            EmbedCodePlatform.detect("Mac OS X", "aarch64"),
         )
     }
 
@@ -47,34 +47,23 @@ internal class EmbedCodePlatformSpec {
     fun `select Intel macOS asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-macos-x64.zip", "embed-code-macos-x64"),
-            EmbedCodePlatform.detect("Mac OS X", "x86_64", "v1.2.4"),
+            EmbedCodePlatform.detect("Mac OS X", "x86_64"),
         )
     }
 
     @Test
-    fun `select Linux ZIP asset for a new release`() {
+    fun `select Linux ZIP asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-linux.zip", "embed-code-linux"),
-            EmbedCodePlatform.detect("Linux", "amd64", "v1.2.5"),
+            EmbedCodePlatform.detect("Linux", "amd64"),
         )
-    }
-
-    @Test
-    fun `select bare Linux asset for releases published before ZIP packaging`() {
-        listOf("v1.2.3", "v1.2.4").forEach { releaseTag ->
-            assertEquals(
-                EmbedCodePlatform("embed-code-linux", "embed-code-linux"),
-                EmbedCodePlatform.detect("Linux", "amd64", releaseTag),
-                releaseTag,
-            )
-        }
     }
 
     @Test
     fun `select Windows asset`() {
         assertEquals(
             EmbedCodePlatform("embed-code-windows.exe", "embed-code-windows.exe"),
-            EmbedCodePlatform.detect("Windows 11", "amd64", "v1.2.4"),
+            EmbedCodePlatform.detect("Windows 11", "amd64"),
         )
     }
 
@@ -91,7 +80,7 @@ internal class EmbedCodePlatformSpec {
     @Test
     fun `reject platform without release binary`() {
         val error = assertThrows(GradleException::class.java) {
-            EmbedCodePlatform.detect("Linux", "aarch64", "v1.2.4")
+            EmbedCodePlatform.detect("Linux", "aarch64")
         }
 
         assertEquals(

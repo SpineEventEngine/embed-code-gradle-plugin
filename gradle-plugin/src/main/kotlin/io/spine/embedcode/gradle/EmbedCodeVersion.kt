@@ -31,9 +31,17 @@ import org.gradle.api.InvalidUserDataException
 private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
 
 /**
+ * All releases published before `v1.2.5`, the minimum supported Embed Code version.
+ *
+ * They do not accept the `joined-fragment-separator` option that the plugin always configures.
+ */
+private val unsupportedReleaseTags = setOf("v1.2.3", "v1.2.4")
+
+/**
  * Trims and validates a user-configured Embed Code release tag.
  *
  * The tag becomes a release URL segment, so only URL-safe characters are accepted.
+ * Releases older than the minimum supported version are rejected.
  */
 internal fun validateVersion(value: String): String {
     val version = value.trim()
@@ -53,6 +61,13 @@ internal fun validateVersion(value: String): String {
             "Embed Code release tag `$value` is invalid. " +
                 "Use letters, digits, dots, hyphens, underscores, plus signs, or tildes, " +
                 "and start with a letter or digit.",
+        )
+    }
+    if (version in unsupportedReleaseTags) {
+        throw InvalidUserDataException(
+            "Embed Code release `$version` is not supported because it does not " +
+                "accept the `joined-fragment-separator` option. " +
+                "Configure `embedCode.version` with `v1.2.5` or newer.",
         )
     }
     return version

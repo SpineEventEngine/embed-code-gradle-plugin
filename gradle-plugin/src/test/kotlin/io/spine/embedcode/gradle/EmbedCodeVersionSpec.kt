@@ -40,7 +40,7 @@ internal class EmbedCodeVersionSpec {
     @Test
     fun `accept and trim safe release tags`() {
         val tags = listOf(
-            "v1.2.3",
+            "v1.2.5",
             "1.0.0-beta+build",
             "2.0_rc1",
             "CON",
@@ -76,6 +76,22 @@ internal class EmbedCodeVersionSpec {
             assertThrows(InvalidUserDataException::class.java) {
                 validateVersion(tag)
             }
+        }
+    }
+
+    @Test
+    fun `reject releases that do not accept the joined fragment separator`() {
+        listOf("v1.2.3", "v1.2.4", " v1.2.4 ").forEach { tag ->
+            val error = assertThrows(InvalidUserDataException::class.java) {
+                validateVersion(tag)
+            }
+
+            assertEquals(
+                "Embed Code release `${tag.trim()}` is not supported because it does not " +
+                    "accept the `joined-fragment-separator` option. " +
+                    "Configure `embedCode.version` with `v1.2.5` or newer.",
+                error.message,
+            )
         }
     }
 

@@ -247,23 +247,6 @@ internal class EmbedCodePluginSpec {
     }
 
     @Test
-    fun `install a bare Linux asset from a release published before ZIP packaging`() {
-        val releaseTag = "v1.2.4"
-        val asset = releaseDirectory.resolve(
-            "download/$releaseTag/embed-code-linux",
-        )
-        Files.createDirectories(asset.parent)
-        Files.writeString(asset, "Legacy Linux executable")
-        writeBuildFile(version = releaseTag, sha256 = sha256(asset))
-        selectLinuxReleaseAsset()
-
-        val result = runner(":installEmbedCode").build()
-
-        result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.SUCCESS
-        Files.readString(installedExecutable(releaseTag)) shouldBe "Legacy Linux executable"
-    }
-
-    @Test
     fun `reuse the verified default executable without another download`() {
         val downloads = AtomicInteger()
         val server = startReleaseServer(downloads)
@@ -520,7 +503,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            TEST_RELEASE_TAG,
         )
         val taskTemporaryDirectory = projectDirectory.resolve("build/tmp/installEmbedCode")
         Files.createDirectories(taskTemporaryDirectory)
@@ -706,6 +688,39 @@ internal class EmbedCodePluginSpec {
         val result = runner(":installEmbedCode").buildAndFail()
 
         result.output shouldContain "The rolling Embed Code version `latest` is not supported."
+    }
+
+    @Test
+    fun `reject a release older than the minimum supported version`() {
+        writeBuildFile(version = "v1.2.4", configureSha256 = false)
+
+        val result = runner(":checkEmbedding").buildAndFail()
+
+        result.output shouldContain "Embed Code release `v1.2.4` is not supported"
+        result.output shouldContain "Configure `embedCode.version` with `v1.2.5` or newer."
+        Files.exists(projectDirectory.resolve("arguments.txt")) shouldBe false
+    }
+
+    @Test
+    fun `reject an older release when named source roots are configured`() {
+        Files.createDirectories(projectDirectory.resolve("company-site"))
+        Files.createDirectories(projectDirectory.resolve("browser"))
+        writeNamedSourcesBuildFile()
+        Files.writeString(
+            projectDirectory.resolve("build.gradle.kts"),
+            """
+
+            embedCode {
+                version.set("v1.2.4")
+            }
+            """.trimIndent(),
+            StandardOpenOption.APPEND,
+        )
+
+        val result = runner(":checkEmbedding").buildAndFail()
+
+        result.output shouldContain "Embed Code release `v1.2.4` is not supported"
+        Files.exists(projectDirectory.resolve("generated-config.json")) shouldBe false
     }
 
     @Test
@@ -1041,7 +1056,6 @@ internal class EmbedCodePluginSpec {
             val platform = EmbedCodePlatform.detect(
                 System.getProperty("os.name"),
                 System.getProperty("os.arch"),
-                TEST_RELEASE_TAG,
             )
             val source = "$baseUrl/download/$TEST_RELEASE_TAG/${platform.assetName}"
             result.task(":installEmbedCode")?.outcome shouldBe TaskOutcome.FAILED
@@ -1405,7 +1419,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            tag,
         )
         val versionDirectory = root.resolve("download/$tag")
         Files.createDirectories(versionDirectory)
@@ -1453,7 +1466,6 @@ internal class EmbedCodePluginSpec {
         val platform = EmbedCodePlatform.detect(
             System.getProperty("os.name"),
             System.getProperty("os.arch"),
-            tag.trim(),
         )
         val asset = root.resolve("download/${tag.trim()}/${platform.assetName}")
         return sha256(asset)
