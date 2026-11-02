@@ -180,7 +180,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install the Linux ZIP release asset`() {
-        val releaseTag = "v1.2.5"
+        val releaseTag = "v9.9.9"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -201,7 +201,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install a Linux ZIP release with a nested executable`() {
-        val releaseTag = "v1.2.5-nested-executable"
+        val releaseTag = "v9.9.9-nested-executable"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -222,7 +222,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `reject a Linux ZIP release without the expected executable`() {
-        val releaseTag = "v1.2.5-missing-executable"
+        val releaseTag = "v9.9.9-missing-executable"
         val asset = releaseDirectory.resolve(
             "download/$releaseTag/embed-code-linux.zip",
         )
@@ -299,7 +299,7 @@ internal class EmbedCodePluginSpec {
 
     @Test
     fun `install an overridden application release into a separate cache`() {
-        val nextVersion = "1.2.5-test"
+        val nextVersion = "9.9.9-test"
         val nextTag = "v$nextVersion"
         createFakeRelease(releaseDirectory, nextVersion, nextTag)
         val downloads = AtomicInteger()
@@ -697,7 +697,8 @@ internal class EmbedCodePluginSpec {
         val result = runner(":checkEmbedding").buildAndFail()
 
         result.output shouldContain "Embed Code release `v1.2.4` is not supported"
-        result.output shouldContain "Configure `embedCode.version` with `v1.2.5` or newer."
+        result.output shouldContain
+            "Configure `embedCode.version` with `$MINIMUM_EMBED_CODE_VERSION` or newer."
         Files.exists(projectDirectory.resolve("arguments.txt")) shouldBe false
     }
 

@@ -40,8 +40,8 @@ internal class EmbedCodeVersionSpec {
     @Test
     fun `accept and trim safe release tags`() {
         val tags = listOf(
-            "v1.2.5",
-            "1.2.5-beta+build",
+            "v9.9.9",
+            "9.9.9-beta+build",
             "2.0_rc1",
             "CON",
             "release.",
@@ -98,7 +98,7 @@ internal class EmbedCodeVersionSpec {
 
             assertEquals(
                 "Embed Code release `${tag.trim()}` is not supported. " +
-                    "Configure `embedCode.version` with `v1.2.5` or newer.",
+                    "Configure `embedCode.version` with `$MINIMUM_EMBED_CODE_VERSION` or newer.",
                 error.message,
             )
         }

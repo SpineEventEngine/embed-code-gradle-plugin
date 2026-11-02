@@ -41,9 +41,16 @@ private val numberedReleaseTag = Regex("""[vV]?(\d{1,9})\.(\d{1,9})\.(\d{1,9})(?
  * The oldest supported Embed Code release.
  *
  * Older releases do not accept the `joined-fragment-separator` option that the plugin
- * always configures.
+ * always configures. The `EmbedCodeExtension.version` KDoc repeats this value for consumers,
+ * so update it together with this constant.
  */
-private const val MINIMUM_EMBED_CODE_VERSION = "v1.2.5"
+internal const val MINIMUM_EMBED_CODE_VERSION: String = "v1.2.5"
+
+/**
+ * The `major.minor.patch` numbers of [MINIMUM_EMBED_CODE_VERSION].
+ */
+private val minimumReleaseNumbers =
+    MINIMUM_EMBED_CODE_VERSION.removePrefix("v").split('.').map(String::toInt)
 
 /**
  * Trims and validates a user-configured Embed Code release tag.
@@ -88,8 +95,8 @@ internal fun validateVersion(value: String): String {
  */
 private fun isOlderThanMinimumVersion(tag: String): Boolean {
     val numbers = releaseNumbers(tag) ?: return false
-    val minimum = checkNotNull(releaseNumbers(MINIMUM_EMBED_CODE_VERSION))
-    val firstDifference = numbers.zip(minimum).firstOrNull { (part, floor) -> part != floor }
+    val firstDifference = numbers.zip(minimumReleaseNumbers)
+        .firstOrNull { (part, floor) -> part != floor }
     return firstDifference != null && firstDifference.first < firstDifference.second
 }
 

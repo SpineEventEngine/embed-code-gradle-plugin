@@ -25,7 +25,7 @@
  */
 
 /** Version of the Embed Code Gradle plugin. */
-extra.set("embedCodePluginVersion", "0.1.3")
+extra.set("embedCodePluginVersion", "0.2.0")
 
 /** Version of the Embed Code application used by default. */
-extra.set("embedCodeAppVersion", "1.2.5")
+extra.set("embedCodeAppVersion", "1.2.7")

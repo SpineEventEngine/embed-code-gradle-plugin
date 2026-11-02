@@ -35,7 +35,7 @@ Add the following configuration to the project's `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.spine.embed-code") version "0.1.3" // Specify the actual version here.
+    id("io.spine.embed-code") version "0.2.0" // Specify the actual version here.
 }
 
 embedCode {
@@ -125,7 +125,7 @@ To set the application version explicitly, use its exact release tag:
 
 ```kotlin
 embedCode {
-    version.set("v1.2.5")
+    version.set("v1.2.7")
 }
 ```
 
