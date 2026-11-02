@@ -41,7 +41,7 @@ internal class EmbedCodeVersionSpec {
     fun `accept and trim safe release tags`() {
         val tags = listOf(
             "v1.2.5",
-            "1.0.0-beta+build",
+            "1.2.5-beta+build",
             "2.0_rc1",
             "CON",
             "release.",
@@ -80,18 +80,57 @@ internal class EmbedCodeVersionSpec {
     }
 
     @Test
-    fun `reject releases that do not accept the joined fragment separator`() {
-        listOf("v1.2.3", "v1.2.4", " v1.2.4 ").forEach { tag ->
+    fun `reject releases numbered below the minimum supported version`() {
+        val tags = listOf(
+            "v1.2.4",
+            "1.2.4",
+            "V1.2.4",
+            "v1.2.4-rc1",
+            "v1.1.9",
+            "v0.99.99",
+            " v1.2.3 ",
+        )
+
+        tags.forEach { tag ->
             val error = assertThrows(InvalidUserDataException::class.java) {
                 validateVersion(tag)
             }
 
             assertEquals(
-                "Embed Code release `${tag.trim()}` is not supported because it does not " +
-                    "accept the `joined-fragment-separator` option. " +
+                "Embed Code release `${tag.trim()}` is not supported. " +
                     "Configure `embedCode.version` with `v1.2.5` or newer.",
                 error.message,
             )
+        }
+    }
+
+    @Test
+    fun `accept releases numbered at or above the minimum supported version`() {
+        val tags = listOf(
+            "v1.2.5",
+            "1.2.5",
+            "v1.2.5-rc1",
+            "v1.2.10",
+            "v1.10.0",
+            "v2.0.0",
+        )
+
+        tags.forEach { tag ->
+            assertEquals(tag, validateVersion(tag))
+        }
+    }
+
+    @Test
+    fun `accept tags without a comparable version number`() {
+        val tags = listOf(
+            "nightly",
+            "v1.2",
+            "v1.2.4x",
+            "v1234567890.0.0",
+        )
+
+        tags.forEach { tag ->
+            assertEquals(tag, validateVersion(tag))
         }
     }
 

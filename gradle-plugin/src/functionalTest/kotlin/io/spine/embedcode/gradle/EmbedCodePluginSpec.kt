@@ -621,8 +621,8 @@ internal class EmbedCodePluginSpec {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `trim an overridden Embed Code release tag`() {
-        val overrideTag = "v0.0.0-test"
-        createFakeRelease(releaseDirectory, version = "0.0.0-test", tag = overrideTag)
+        val overrideTag = "v9.9.9-test"
+        createFakeRelease(releaseDirectory, version = "9.9.9-test", tag = overrideTag)
         writeBuildFile(" $overrideTag ")
 
         val result = runner(":checkEmbedding").build()

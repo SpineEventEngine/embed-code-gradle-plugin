@@ -55,8 +55,9 @@ public abstract class EmbedCodeExtension @Inject constructor(objects: ObjectFact
      * Tags must start with an ASCII letter or digit and may then contain only letters,
      * digits, dots, hyphens, underscores, plus signs, or tildes.
      * Tags containing `/` are unsupported because the tag is used as a release URL segment.
-     * Releases older than `v1.2.5` are rejected because they do not accept the
-     * `joined-fragment-separator` option.
+     * Tags numbered below `v1.2.5` are rejected because those releases do not accept the
+     * `joined-fragment-separator` option. Tags without a `major.minor.patch` number
+     * cannot be compared, so this check does not apply to them.
      */
     public abstract val version: Property<String>
 

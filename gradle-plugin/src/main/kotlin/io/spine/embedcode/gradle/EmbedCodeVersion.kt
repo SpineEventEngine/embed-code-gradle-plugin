@@ -31,17 +31,25 @@ import org.gradle.api.InvalidUserDataException
 private val validReleaseTag = Regex("[A-Za-z0-9][A-Za-z0-9._+~-]*")
 
 /**
- * All releases published before `v1.2.5`, the minimum supported Embed Code version.
+ * A release tag numbered `major.minor.patch`, optionally followed by a suffix.
  *
- * They do not accept the `joined-fragment-separator` option that the plugin always configures.
+ * Each number is limited to nine digits, so it always fits an `Int`.
  */
-private val unsupportedReleaseTags = setOf("v1.2.3", "v1.2.4")
+private val numberedReleaseTag = Regex("""[vV]?(\d{1,9})\.(\d{1,9})\.(\d{1,9})(?:[._+~-].*)?""")
+
+/**
+ * The oldest supported Embed Code release.
+ *
+ * Older releases do not accept the `joined-fragment-separator` option that the plugin
+ * always configures.
+ */
+private const val MINIMUM_EMBED_CODE_VERSION = "v1.2.5"
 
 /**
  * Trims and validates a user-configured Embed Code release tag.
  *
  * The tag becomes a release URL segment, so only URL-safe characters are accepted.
- * Releases older than the minimum supported version are rejected.
+ * Releases numbered below [MINIMUM_EMBED_CODE_VERSION] are rejected.
  */
 internal fun validateVersion(value: String): String {
     val version = value.trim()
@@ -63,15 +71,33 @@ internal fun validateVersion(value: String): String {
                 "and start with a letter or digit.",
         )
     }
-    if (version in unsupportedReleaseTags) {
+    if (isOlderThanMinimumVersion(version)) {
         throw InvalidUserDataException(
-            "Embed Code release `$version` is not supported because it does not " +
-                "accept the `joined-fragment-separator` option. " +
-                "Configure `embedCode.version` with `v1.2.5` or newer.",
+            "Embed Code release `$version` is not supported. " +
+                "Configure `embedCode.version` with `$MINIMUM_EMBED_CODE_VERSION` or newer.",
         )
     }
     return version
 }
+
+/**
+ * Tells whether [tag] is numbered below [MINIMUM_EMBED_CODE_VERSION].
+ *
+ * A suffix does not affect the comparison. A tag without a `major.minor.patch` number
+ * cannot be ordered against the minimum, so it is not considered older.
+ */
+private fun isOlderThanMinimumVersion(tag: String): Boolean {
+    val numbers = releaseNumbers(tag) ?: return false
+    val minimum = checkNotNull(releaseNumbers(MINIMUM_EMBED_CODE_VERSION))
+    val firstDifference = numbers.zip(minimum).firstOrNull { (part, floor) -> part != floor }
+    return firstDifference != null && firstDifference.first < firstDifference.second
+}
+
+/**
+ * Returns the `major.minor.patch` numbers of [tag], or `null` if it is not numbered that way.
+ */
+private fun releaseNumbers(tag: String): List<Int>? =
+    numberedReleaseTag.matchEntire(tag)?.groupValues?.drop(1)?.map(String::toInt)
 
 /**
  * Returns a case-sensitive, filesystem-portable cache key for [releaseTag].
